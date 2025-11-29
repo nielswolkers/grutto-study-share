@@ -25,7 +25,6 @@ const Files = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Check authentication
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
@@ -64,9 +63,9 @@ const Files = () => {
   const handleSignOut = async () => {
     const { error } = await authHelpers.signOut();
     if (error) {
-      toast.error("Error signing out");
+      toast.error("Fout bij uitloggen");
     } else {
-      toast.success("Signed out successfully");
+      toast.success("Succesvol uitgelogd");
       navigate("/auth");
     }
   };
@@ -74,7 +73,7 @@ const Files = () => {
   const handleUploadComplete = () => {
     setShowUpload(false);
     setRefreshTrigger(prev => prev + 1);
-    toast.success("File uploaded successfully!");
+    toast.success("Bestand geüpload!");
   };
 
   const handleNotificationsOpen = () => {
@@ -86,59 +85,45 @@ const Files = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">GS</span>
-              </div>
-              <h1 className="text-xl font-semibold">Grutto Study</h1>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={handleNotificationsOpen}
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                  >
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
-              >
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative max-w-2xl mx-auto">
+        {/* Search and Actions Bar */}
+        <div className="mb-8 flex items-center gap-4">
+          <div className="relative flex-1 max-w-2xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Zoeken"
+              placeholder="Zoeken naar bestanden, types, of personen..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-12 bg-card shadow-sm"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              onClick={handleNotificationsOpen}
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
         </div>
 
@@ -146,7 +131,7 @@ const Files = () => {
         {showUpload && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Upload Files</h2>
+              <h2 className="text-lg font-semibold">Bestanden Uploaden</h2>
               <Button
                 variant="ghost"
                 size="icon"
@@ -169,12 +154,12 @@ const Files = () => {
                 onClick={() => setShowFolderDialog(true)}
               >
                 <FolderPlus className="w-4 h-4 mr-2" />
-                New Folder
+                Nieuwe Map
               </Button>
               {!showUpload && (
                 <Button onClick={() => setShowUpload(true)}>
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload
+                  Uploaden
                 </Button>
               )}
             </div>
@@ -192,7 +177,7 @@ const Files = () => {
                 value="uploaded"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
-                My Files
+                Mijn Bestanden
               </TabsTrigger>
               <TabsTrigger 
                 value="shared"

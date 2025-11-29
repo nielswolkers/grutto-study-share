@@ -100,13 +100,13 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl">Grutto Study</CardTitle>
-          <CardDescription>Share and manage your study files</CardDescription>
+          <CardDescription>Deel en beheer je studiebestanden</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="signin">Inloggen</TabsTrigger>
+              <TabsTrigger value="signup">Registreren</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
@@ -134,7 +134,7 @@ const Auth = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                  {isLoading ? "Inloggen..." : "Inloggen"}
                 </Button>
               </form>
             </TabsContent>
@@ -157,13 +157,14 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-display">Display Name (optional)</Label>
+                  <Label htmlFor="signup-display">Volledige Naam *</Label>
                   <Input
                     id="signup-display"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="Jan de Vries"
                     value={signUpData.displayName}
                     onChange={(e) => setSignUpData({ ...signUpData, displayName: e.target.value })}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -189,10 +190,10 @@ const Auth = () => {
                     minLength={8}
                     title="Password must be at least 8 characters"
                   />
-                  <p className="text-xs text-muted-foreground">At least 8 characters</p>
+                  <p className="text-xs text-muted-foreground">Minimaal 8 tekens</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Create Account"}
+                  {isLoading ? "Account aanmaken..." : "Account Aanmaken"}
                 </Button>
               </form>
             </TabsContent>

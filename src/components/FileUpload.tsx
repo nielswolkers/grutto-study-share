@@ -9,6 +9,7 @@ import { toast } from "sonner";
 interface FileUploadProps {
   userId: string;
   onUploadComplete: () => void;
+  folderId?: string;
 }
 
 interface UploadingFile {
@@ -25,11 +26,10 @@ const getFileIcon = (fileType: string) => {
   return <File className="w-8 h-8 text-muted-foreground" />;
 };
 
-export const FileUpload = ({ userId, onUploadComplete }: FileUploadProps) => {
+export const FileUpload = ({ userId, onUploadComplete, folderId }: FileUploadProps) => {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    // Filter for supported file types
     const supportedFiles = acceptedFiles.filter(file => {
       const type = file.type;
       const validTypes = [
@@ -39,13 +39,16 @@ export const FileUpload = ({ userId, onUploadComplete }: FileUploadProps) => {
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
       ];
       return validTypes.includes(type) && file.size <= 50 * 1024 * 1024; // 50MB
     });
 
     if (supportedFiles.length !== acceptedFiles.length) {
-      toast.error("Some files were rejected. Only PDF, Word, PowerPoint, and Excel files under 50MB are supported.");
+      toast.error("Sommige bestanden werden geweigerd. Alleen PDF, Word, PowerPoint, Excel en afbeeldingen onder 50MB worden ondersteund.");
     }
 
     // Initialize upload tracking
@@ -98,6 +101,7 @@ export const FileUpload = ({ userId, onUploadComplete }: FileUploadProps) => {
             file_type: file.type,
             file_size: file.size,
             storage_url: fileName,
+            folder_id: folderId || null,
           });
 
         if (dbError) throw dbError;
@@ -130,6 +134,8 @@ export const FileUpload = ({ userId, onUploadComplete }: FileUploadProps) => {
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
       'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
     },
     maxSize: 50 * 1024 * 1024, // 50MB
   });
@@ -149,15 +155,15 @@ export const FileUpload = ({ userId, onUploadComplete }: FileUploadProps) => {
         <input {...getInputProps()} />
         <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
         {isDragActive ? (
-          <p className="text-lg font-medium">Drop files here...</p>
+          <p className="text-lg font-medium">Sleep bestanden hier...</p>
         ) : (
           <>
-            <p className="text-lg font-medium mb-2">Drag & drop files here</p>
+            <p className="text-lg font-medium mb-2">Sleep bestanden hier</p>
             <p className="text-sm text-muted-foreground mb-4">
-              or click to browse files
+              of klik om bestanden te selecteren
             </p>
             <p className="text-xs text-muted-foreground">
-              Supports PDF, Word, PowerPoint, Excel • Max 50MB per file
+              Ondersteunt PDF, Word, PowerPoint, Excel en Afbeeldingen • Max 50MB per bestand
             </p>
           </>
         )}

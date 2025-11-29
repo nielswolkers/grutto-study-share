@@ -38,7 +38,7 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
 
   const handleCreate = async () => {
     if (!folderName.trim()) {
-      toast.error("Please enter a folder name");
+      toast.error("Voer een mapnaam in");
       return;
     }
 
@@ -54,13 +54,13 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
 
       if (error) throw error;
 
-      toast.success("Folder created successfully");
+      toast.success("Map aangemaakt");
       setFolderName("");
       setSelectedColor(FOLDER_COLORS[0].color);
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Failed to create folder");
+      toast.error("Kon map niet aanmaken");
       console.error(error);
     } finally {
       setIsCreating(false);
@@ -71,19 +71,19 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Folder</DialogTitle>
+          <DialogTitle>Nieuwe Map Aanmaken</DialogTitle>
           <DialogDescription>
-            Organize your files with custom folders
+            Organiseer je bestanden met aangepaste mappen
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Folder Name */}
           <div className="space-y-2">
-            <Label htmlFor="folder-name">Folder Name</Label>
+            <Label htmlFor="folder-name">Mapnaam</Label>
             <Input
               id="folder-name"
-              placeholder="Enter folder name"
+              placeholder="Voer mapnaam in"
               value={folderName}
               onChange={(e) => setFolderName(e.target.value)}
               maxLength={50}
@@ -92,7 +92,7 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
 
           {/* Color Selection */}
           <div className="space-y-2">
-            <Label>Folder Color</Label>
+            <Label>Mapkleur</Label>
             <div className="grid grid-cols-4 gap-2">
               {FOLDER_COLORS.map((colorOption) => (
                 <button
@@ -113,7 +113,7 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
           {/* Actions */}
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+              Annuleren
             </Button>
             <Button
               onClick={handleCreate}
@@ -121,7 +121,7 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
               className="flex-1"
             >
               <FolderPlus className="w-4 h-4 mr-2" />
-              {isCreating ? "Creating..." : "Create Folder"}
+              {isCreating ? "Aanmaken..." : "Map Aanmaken"}
             </Button>
           </div>
         </div>
