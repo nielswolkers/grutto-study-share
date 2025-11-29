@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, FileSpreadsheet, Download, Share2, Trash2, MoreHorizontal } from "lucide-react";
+import { FileText, FileSpreadsheet, Download, Share2, Trash2, MoreHorizontal, Eye } from "lucide-react";
 import { Button } from "./ui/button";
 import { 
   DropdownMenu, 
@@ -10,6 +10,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Badge } from "./ui/badge";
 import { ShareDialog } from "./ShareDialog";
+import { FilePreviewDialog } from "./FilePreviewDialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -54,6 +55,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareDialogFile, setShareDialogFile] = useState<FileData | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileData | null>(null);
 
   useEffect(() => {
     loadFiles();
@@ -294,6 +296,10 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setPreviewFile(file)}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Preview
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDownload(file)}>
                   <Download className="w-4 h-4 mr-2" />
                   Download
@@ -324,6 +330,14 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
           file={shareDialogFile}
           open={!!shareDialogFile}
           onClose={() => setShareDialogFile(null)}
+        />
+      )}
+
+      {previewFile && (
+        <FilePreviewDialog
+          file={previewFile}
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
         />
       )}
     </>
