@@ -89,15 +89,6 @@ export const FilePreview = () => {
     }
   };
 
-  const getFileTypeLabel = (fileType: string) => {
-    if (fileType.includes('image')) return 'AFBEELDING';
-    if (fileType.includes('word')) return 'WORD';
-    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return 'EXCEL';
-    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return 'POWERPOINT';
-    if (fileType.includes('pdf')) return 'PDF';
-    return 'BESTAND';
-  };
-
   const isImage = file?.file_type.includes('image');
   const isPdf = file?.file_type.includes('pdf');
   const isWord = file?.file_type.includes('word');
@@ -105,15 +96,16 @@ export const FilePreview = () => {
   const isPowerPoint = file?.file_type.includes('powerpoint') || file?.file_type.includes('presentation');
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">{/* White background for preview */}
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3">
+      <header className="border-b bg-white px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/files")}
+              className="rounded-full"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -123,16 +115,16 @@ export const FilePreview = () => {
                 <Input
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
-                  className="h-9"
+                  className="h-9 rounded-full"
                   autoFocus
                 />
-                <Button size="icon" variant="ghost" onClick={handleRename}>
+                <Button size="icon" variant="ghost" onClick={handleRename} className="rounded-full">
                   <Check className="w-4 h-4" />
                 </Button>
                 <Button size="icon" variant="ghost" onClick={() => {
                   setNewFileName(file.filename);
                   setIsEditingName(false);
-                }}>
+                }} className="rounded-full">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -142,7 +134,7 @@ export const FilePreview = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 flex-shrink-0"
+                  className="h-8 w-8 flex-shrink-0 rounded-full"
                   onClick={() => setIsEditingName(true)}
                 >
                   <Edit2 className="w-4 h-4" />
@@ -151,20 +143,14 @@ export const FilePreview = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {file && (
-              <span className="text-xs font-medium px-2 py-1 rounded bg-accent text-accent-foreground">
-                {getFileTypeLabel(file.file_type)}
-              </span>
-            )}
-            <Button
-              variant="outline"
-              onClick={handleDownload}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Downloaden
-            </Button>
-          </div>
+          <Button
+            variant="default"
+            onClick={handleDownload}
+            className="rounded-full"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Downloaden
+          </Button>
         </div>
       </header>
 
@@ -182,27 +168,27 @@ export const FilePreview = () => {
               <img
                 src={previewUrl}
                 alt={file?.filename}
-                className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
+                className="max-w-full h-auto mx-auto rounded-2xl shadow-lg"
               />
             )}
 
             {isPdf && (
               <iframe
                 src={previewUrl}
-                className="w-full h-[calc(100vh-200px)] rounded-lg border shadow-lg"
+                className="w-full h-[calc(100vh-200px)] rounded-2xl border shadow-lg"
                 title={file?.filename}
               />
             )}
 
             {(isWord || isExcel || isPowerPoint) && (
-              <div className="border rounded-lg p-12 text-center bg-card">
+              <div className="border rounded-2xl p-12 text-center bg-card">
                 <p className="text-muted-foreground mb-4">
                   Voorbeeld niet beschikbaar voor dit bestandstype
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
                   Dubbelklik op het bestand in de bestandslijst om het te openen in {isWord ? 'Word' : isExcel ? 'Excel' : 'PowerPoint'}
                 </p>
-                <Button onClick={handleDownload}>
+                <Button onClick={handleDownload} className="rounded-full">
                   <Download className="w-4 h-4 mr-2" />
                   Download om te bekijken
                 </Button>

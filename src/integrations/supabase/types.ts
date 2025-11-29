@@ -53,6 +53,7 @@ export type Database = {
           filename: string
           folder_id: string | null
           id: string
+          is_favorite: boolean | null
           last_accessed: string | null
           owner_id: string
           storage_url: string
@@ -65,6 +66,7 @@ export type Database = {
           filename: string
           folder_id?: string | null
           id?: string
+          is_favorite?: boolean | null
           last_accessed?: string | null
           owner_id: string
           storage_url: string
@@ -77,6 +79,7 @@ export type Database = {
           filename?: string
           folder_id?: string | null
           id?: string
+          is_favorite?: boolean | null
           last_accessed?: string | null
           owner_id?: string
           storage_url?: string

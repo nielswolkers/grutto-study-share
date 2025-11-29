@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Upload, Bell, LogOut, FolderPlus, X } from "lucide-react";
+import { Search, Upload, Bell, LogOut, FolderPlus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/FileUpload";
@@ -13,6 +12,7 @@ import { FileList } from "@/components/FileList";
 import { FolderDialog } from "@/components/FolderDialog";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { authHelpers } from "@/lib/supabase";
+import gruttoLogo from "@/assets/grutto-logo.png";
 
 const Files = () => {
   const navigate = useNavigate();
@@ -23,6 +23,10 @@ const Files = () => {
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeView, setActiveView] = useState<"recent" | "shared" | "favorites">("recent");
+  const [hasFavorites, setHasFavorites] = useState(false);
+  const [sortBy, setSortBy] = useState<"name" | "date">("date");
+  const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,6 +35,7 @@ const Files = () => {
       } else {
         setUser(session.user);
         loadUnreadCount(session.user.id);
+        checkFavorites(session.user.id);
       }
     });
 
@@ -40,6 +45,7 @@ const Files = () => {
       } else {
         setUser(session.user);
         loadUnreadCount(session.user.id);
+        checkFavorites(session.user.id);
       }
     });
 
@@ -57,6 +63,20 @@ const Files = () => {
       setUnreadCount(count || 0);
     } catch (error) {
       console.error("Failed to load notification count:", error);
+    }
+  };
+
+  const checkFavorites = async (userId: string) => {
+    try {
+      const { count } = await supabase
+        .from('files')
+        .select('*', { count: 'exact', head: true })
+        .eq('owner_id', userId)
+        .eq('is_favorite', true);
+      
+      setHasFavorites((count || 0) > 0);
+    } catch (error) {
+      console.error("Failed to check favorites:", error);
     }
   };
 
@@ -81,46 +101,110 @@ const Files = () => {
     if (user) loadUnreadCount(user.id);
   };
 
+  const handleFolderCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+    if (user) checkFavorites(user.id);
+  };
+
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Logo */}
+      <div className="max-w-7xl mx-auto px-6 pt-6">
+        <img src={gruttoLogo} alt="Grutto" className="h-10" />
+      </div>
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Actions Bar */}
-        <div className="mb-8 flex items-center gap-4">
-          <div className="relative flex-1 max-w-2xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Zoeken naar bestanden, types, of personen..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12 bg-card shadow-sm"
-            />
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        {/* Top Bar with Tabs and Actions - Increased height */}
+        <div className="mb-6 flex items-center justify-between gap-4 h-16">
+          {/* View Tabs */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant={activeView === "recent" ? "default" : "ghost"}
+              onClick={() => setActiveView("recent")}
+              className="rounded-full"
+            >
+              Recent
+            </Button>
+            <Button
+              variant={activeView === "shared" ? "default" : "ghost"}
+              onClick={() => setActiveView("shared")}
+              className="rounded-full"
+            >
+              Gedeeld
+            </Button>
+            {hasFavorites && (
+              <Button
+                variant={activeView === "favorites" ? "default" : "ghost"}
+                onClick={() => setActiveView("favorites")}
+                className="rounded-full"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Favorieten
+              </Button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Actions Group */}
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Zoeken..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 rounded-full bg-secondary border-0"
+              />
+            </div>
+
+            {/* Folder Creation */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowFolderDialog(true)}
+              className="rounded-full"
+            >
+              <FolderPlus className="w-5 h-5" />
+            </Button>
+
+            {/* Upload */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowUpload(!showUpload)}
+              className="rounded-full"
+            >
+              <Upload className="w-5 h-5" />
+            </Button>
+
+            {/* Notifications */}
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
+              className="relative rounded-full"
               onClick={handleNotificationsOpen}
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs rounded-full"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
               )}
             </Button>
+
+            {/* Logout */}
             <Button
               variant="ghost"
               size="icon"
               onClick={handleSignOut}
+              className="rounded-full"
             >
               <LogOut className="w-5 h-5" />
             </Button>
@@ -129,99 +213,67 @@ const Files = () => {
 
         {/* Upload Section */}
         {showUpload && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Bestanden Uploaden</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowUpload(false)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
+          <div className="mb-6 p-6 bg-card rounded-2xl shadow-sm border">
             <FileUpload userId={user.id} onUploadComplete={handleUploadComplete} />
           </div>
         )}
 
-        {/* Files Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Snelle toegang</h2>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                onClick={() => setShowFolderDialog(true)}
-              >
-                <FolderPlus className="w-4 h-4 mr-2" />
-                Nieuwe Map
-              </Button>
-              {!showUpload && (
-                <Button onClick={() => setShowUpload(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Uploaden
-                </Button>
-              )}
-            </div>
+        {/* Sort and Filter Bar - Compact, one line */}
+        <div className="mb-4 flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Sorteren:</span>
+            <Button
+              variant={sortBy === "name" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setSortBy("name")}
+              className="h-8 rounded-full"
+            >
+              Naam (A-Z)
+            </Button>
+            <Button
+              variant={sortBy === "date" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setSortBy("date")}
+              className="h-8 rounded-full"
+            >
+              Datum
+            </Button>
           </div>
 
-          <Tabs defaultValue="recent" className="w-full">
-            <TabsList className="bg-card border-b w-full justify-start rounded-none h-auto p-0">
-              <TabsTrigger 
-                value="recent"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Recent
-              </TabsTrigger>
-              <TabsTrigger 
-                value="uploaded"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Mijn Bestanden
-              </TabsTrigger>
-              <TabsTrigger 
-                value="shared"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Gedeeld
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="recent" className="mt-6">
-              <FileList 
-                userId={user.id} 
-                viewType="recent" 
-                searchQuery={searchQuery}
-                refreshTrigger={refreshTrigger}
-              />
-            </TabsContent>
-
-            <TabsContent value="uploaded" className="mt-6">
-              <FileList 
-                userId={user.id} 
-                viewType="uploaded" 
-                searchQuery={searchQuery}
-                refreshTrigger={refreshTrigger}
-              />
-            </TabsContent>
-
-            <TabsContent value="shared" className="mt-6">
-              <FileList 
-                userId={user.id} 
-                viewType="shared" 
-                searchQuery={searchQuery}
-                refreshTrigger={refreshTrigger}
-              />
-            </TabsContent>
-          </Tabs>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Type:</span>
+            <select
+              value={fileTypeFilter}
+              onChange={(e) => setFileTypeFilter(e.target.value)}
+              className="h-8 px-3 rounded-full border bg-background text-sm"
+            >
+              <option value="all">Alle bestanden</option>
+              <option value="pdf">PDF</option>
+              <option value="word">Word</option>
+              <option value="excel">Excel</option>
+              <option value="powerpoint">PowerPoint</option>
+              <option value="image">Afbeeldingen</option>
+            </select>
+          </div>
         </div>
+
+        {/* Files Section */}
+        <FileList 
+          userId={user.id} 
+          viewType={activeView}
+          searchQuery={searchQuery}
+          refreshTrigger={refreshTrigger}
+          sortBy={sortBy}
+          fileTypeFilter={fileTypeFilter}
+          onFavoritesChange={() => checkFavorites(user.id)}
+        />
       </main>
 
       {/* Dialogs */}
       <FolderDialog
         open={showFolderDialog}
         onClose={() => setShowFolderDialog(false)}
-        onSuccess={() => setRefreshTrigger(prev => prev + 1)}
+        onSuccess={handleFolderCreated}
         userId={user.id}
       />
 
