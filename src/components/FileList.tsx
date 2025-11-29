@@ -1,26 +1,27 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, FileSpreadsheet, Download, Share2, Trash2, MoreHorizontal, Folder, Image } from "lucide-react";
+import { FileText, FileSpreadsheet, Download, Share2, Trash2, MoreHorizontal, Folder, Image, Star, Copy, Edit2, ArrowUpRight } from "lucide-react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "./ui/dropdown-menu";
-import { Badge } from "./ui/badge";
 import { ShareDialog } from "./ShareDialog";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { nl } from "date-fns/locale";
+import { formatRelativeDate } from "@/lib/dateUtils";
 
 interface FileListProps {
   userId: string;
-  viewType: "recent" | "uploaded" | "shared" | "folder";
+  viewType: "recent" | "shared" | "favorites";
   searchQuery: string;
   refreshTrigger: number;
-  folderId?: string;
+  sortBy: "name" | "date";
+  fileTypeFilter: string;
+  onFavoritesChange: () => void;
 }
 
 interface FileData {
@@ -32,6 +33,7 @@ interface FileData {
   storage_url: string;
   owner_id: string;
   folder_id?: string | null;
+  is_favorite?: boolean;
   profiles?: {
     username: string;
     display_name: string;
@@ -47,11 +49,11 @@ interface FolderData {
 }
 
 const getFileIcon = (fileType: string) => {
-  if (fileType.includes('image')) return <Image className="w-5 h-5 text-primary" />;
-  if (fileType.includes('word')) return <FileText className="w-5 h-5 text-file-word" />;
-  if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FileSpreadsheet className="w-5 h-5 text-file-excel" />;
-  if (fileType.includes('powerpoint') || fileType.includes('presentation')) return <FileSpreadsheet className="w-5 h-5 text-file-powerpoint" />;
-  if (fileType.includes('pdf')) return <FileText className="w-5 h-5 text-file-pdf" />;
+  if (fileType.includes('image')) return <Image className="w-5 h-5" />;
+  if (fileType.includes('word')) return <FileText className="w-5 h-5" style={{ color: 'hsl(217, 89%, 44%)' }} />;
+  if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FileSpreadsheet className="w-5 h-5" style={{ color: 'hsl(142, 76%, 36%)' }} />;
+  if (fileType.includes('powerpoint') || fileType.includes('presentation')) return <FileSpreadsheet className="w-5 h-5" style={{ color: 'hsl(14, 100%, 57%)' }} />;
+  if (fileType.includes('pdf')) return <FileText className="w-5 h-5" style={{ color: 'hsl(0, 66%, 47%)' }} />;
   return <FileText className="w-5 h-5 text-muted-foreground" />;
 };
 
@@ -64,20 +66,23 @@ const getFileTypeLabel = (fileType: string) => {
   return 'DOCUMENT';
 };
 
-export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folderId }: FileListProps) => {
+export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy, fileTypeFilter, onFavoritesChange }: FileListProps) => {
   const navigate = useNavigate();
   const [files, setFiles] = useState<FileData[]>([]);
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareDialogFile, setShareDialogFile] = useState<FileData | null>(null);
   const [draggedFile, setDraggedFile] = useState<string | null>(null);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [editingFileName, setEditingFileName] = useState("");
+  const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
 
   useEffect(() => {
     loadFiles();
-    if (viewType === "uploaded") {
+    if (viewType === "recent") {
       loadFolders();
     }
-  }, [userId, viewType, refreshTrigger, folderId]);
+  }, [userId, viewType, refreshTrigger]);
 
   const loadFolders = async () => {
     try {
@@ -89,7 +94,6 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
 
       if (error) throw error;
 
-      // Get file counts for each folder
       const foldersWithCounts = await Promise.all(
         (data || []).map(async (folder) => {
           const { count } = await supabase
@@ -112,18 +116,12 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
     try {
       let query;
 
-      if (viewType === "folder") {
-        query = supabase
-          .from('files')
-          .select('*')
-          .eq('folder_id', folderId!)
-          .order('upload_date', { ascending: false });
-      } else if (viewType === "uploaded") {
+      if (viewType === "favorites") {
         query = supabase
           .from('files')
           .select('*')
           .eq('owner_id', userId)
-          .is('folder_id', null)
+          .eq('is_favorite', true)
           .order('upload_date', { ascending: false });
       } else if (viewType === "shared") {
         const { data, error } = await supabase
@@ -138,7 +136,8 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
               upload_date,
               storage_url,
               owner_id,
-              folder_id
+              folder_id,
+              is_favorite
             )
           `)
           .eq('shared_with_user_id', userId);
@@ -159,17 +158,17 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
           profiles: profileMap.get(item.files.owner_id),
         }));
         
-        setFiles(filterFiles(transformedFiles));
+        setFiles(filterAndSortFiles(transformedFiles));
         setLoading(false);
         return;
       } else {
+        // Recent view - show all files (owned and shared)
         const [ownFiles, sharedFilesData] = await Promise.all([
           supabase
             .from('files')
             .select('*')
             .eq('owner_id', userId)
-            .order('upload_date', { ascending: false })
-            .limit(10),
+            .order('upload_date', { ascending: false }),
           supabase
             .from('file_shares')
             .select(`
@@ -182,11 +181,11 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
                 upload_date,
                 storage_url,
                 owner_id,
-                folder_id
+                folder_id,
+                is_favorite
               )
             `)
-            .eq('shared_with_user_id', userId)
-            .limit(10),
+            .eq('shared_with_user_id', userId),
         ]);
 
         if (ownFiles.error) throw ownFiles.error;
@@ -205,10 +204,9 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
         }));
 
         const allFiles = [...ownFiles.data, ...sharedFiles]
-          .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime())
-          .slice(0, 20);
+          .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
         
-        setFiles(filterFiles(allFiles));
+        setFiles(filterAndSortFiles(allFiles));
         setLoading(false);
         return;
       }
@@ -216,7 +214,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
       const { data, error } = await query;
       if (error) throw error;
 
-      setFiles(filterFiles(data || []));
+      setFiles(filterAndSortFiles(data || []));
     } catch (error: any) {
       toast.error("Kon bestanden niet laden");
       console.error(error);
@@ -225,16 +223,36 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
     }
   };
 
-  const filterFiles = (fileList: FileData[]) => {
-    if (!searchQuery) return fileList;
-    
-    const query = searchQuery.toLowerCase();
-    return fileList.filter(file => 
-      file.filename.toLowerCase().includes(query) ||
-      getFileTypeLabel(file.file_type).toLowerCase().includes(query) ||
-      file.profiles?.username?.toLowerCase().includes(query) ||
-      file.profiles?.display_name?.toLowerCase().includes(query)
-    );
+  const filterAndSortFiles = (fileList: FileData[]) => {
+    let filtered = fileList;
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(file => 
+        file.filename.toLowerCase().includes(query) ||
+        getFileTypeLabel(file.file_type).toLowerCase().includes(query) ||
+        file.profiles?.username?.toLowerCase().includes(query) ||
+        file.profiles?.display_name?.toLowerCase().includes(query)
+      );
+    }
+
+    // File type filter
+    if (fileTypeFilter !== "all") {
+      filtered = filtered.filter(file => {
+        const label = getFileTypeLabel(file.file_type).toLowerCase();
+        return label.includes(fileTypeFilter.toLowerCase());
+      });
+    }
+
+    // Sort
+    if (sortBy === "name") {
+      filtered.sort((a, b) => a.filename.localeCompare(b.filename));
+    } else {
+      filtered.sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
+    }
+
+    return filtered;
   };
 
   const handleFileClick = (file: FileData) => {
@@ -280,6 +298,45 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
     }
   };
 
+  const handleDuplicate = async (file: FileData) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('user-files')
+        .download(file.storage_url);
+
+      if (error) throw error;
+
+      const newFileName = `${file.filename.split('.')[0]} (kopie).${file.filename.split('.').pop()}`;
+      const newFilePath = `${userId}/${Date.now()}_${newFileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('user-files')
+        .upload(newFilePath, data, {
+          contentType: file.file_type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { error: insertError } = await supabase
+        .from('files')
+        .insert({
+          filename: newFileName,
+          file_type: file.file_type,
+          file_size: file.file_size,
+          storage_url: newFilePath,
+          owner_id: userId,
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success("Kopie gemaakt");
+      loadFiles();
+    } catch (error: any) {
+      toast.error("Kon kopie niet maken");
+      console.error(error);
+    }
+  };
+
   const handleDelete = async (fileId: string) => {
     try {
       const { error } = await supabase
@@ -291,9 +348,62 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
 
       setFiles(prev => prev.filter(f => f.id !== fileId));
       toast.success("Bestand verwijderd");
+      onFavoritesChange();
     } catch (error: any) {
       toast.error("Kon bestand niet verwijderen");
       console.error(error);
+    }
+  };
+
+  const toggleFavorite = async (file: FileData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase
+        .from('files')
+        .update({ is_favorite: !file.is_favorite })
+        .eq('id', file.id);
+
+      if (error) throw error;
+
+      setFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, is_favorite: !f.is_favorite } : f
+      ));
+      
+      toast.success(file.is_favorite ? "Uit favorieten verwijderd" : "Toegevoegd aan favorieten");
+      onFavoritesChange();
+    } catch (error: any) {
+      toast.error("Kon favoriet niet bijwerken");
+      console.error(error);
+    }
+  };
+
+  const startEditingName = (file: FileData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingFileId(file.id);
+    setEditingFileName(file.filename);
+  };
+
+  const saveFileName = async (fileId: string) => {
+    if (!editingFileName.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from('files')
+        .update({ filename: editingFileName.trim() })
+        .eq('id', fileId);
+
+      if (error) throw error;
+
+      setFiles(prev => prev.map(f => 
+        f.id === fileId ? { ...f, filename: editingFileName.trim() } : f
+      ));
+      
+      toast.success("Naam gewijzigd");
+    } catch (error: any) {
+      toast.error("Kon naam niet wijzigen");
+      console.error(error);
+    } finally {
+      setEditingFileId(null);
     }
   };
 
@@ -316,8 +426,8 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
 
       if (error) throw error;
 
-      setFiles(prev => prev.filter(f => f.id !== draggedFile));
       toast.success("Bestand verplaatst naar map");
+      loadFiles();
       loadFolders();
     } catch (error: any) {
       toast.error("Kon bestand niet verplaatsen");
@@ -337,11 +447,11 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
 
   return (
     <div className="space-y-4">
-      {/* Folders */}
-      {viewType === "uploaded" && folders.length > 0 && (
+      {/* Folders - Only in Recent view */}
+      {viewType === "recent" && folders.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">Mappen</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <h3 className="text-sm font-semibold mb-3">Mappen</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {folders.map(folder => (
               <div
                 key={folder.id}
@@ -351,12 +461,12 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
                   e.preventDefault();
                   handleDropOnFolder(folder.id);
                 }}
-                className="p-4 rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-md"
-                style={{ backgroundColor: folder.color }}
+                className="p-5 rounded-2xl cursor-pointer transition-all hover:scale-105 hover:shadow-md bg-card border-2"
+                style={{ borderColor: folder.color }}
               >
-                <Folder className="w-8 h-8 mb-2" />
-                <p className="font-medium text-sm truncate">{folder.name}</p>
-                <p className="text-xs opacity-75">{folder.fileCount} bestand(en)</p>
+                <Folder className="w-10 h-10 mb-3" style={{ color: folder.color }} />
+                <p className="font-semibold text-sm truncate">{folder.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{folder.fileCount} bestand(en)</p>
               </div>
             ))}
           </div>
@@ -373,26 +483,42 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
         <>
           {files.length > 0 && (
             <>
-              {viewType === "uploaded" && folders.length > 0 && (
-                <h3 className="text-sm font-medium text-muted-foreground mt-6 mb-3">Bestanden</h3>
+              {viewType === "recent" && folders.length > 0 && (
+                <h3 className="text-sm font-semibold mt-8 mb-3">Bestanden</h3>
               )}
               <div className="space-y-2">
                 {files.map((file) => (
                   <div
                     key={file.id}
-                    draggable
+                    draggable={!editingFileId}
                     onDragStart={() => handleDragStart(file.id)}
-                    onClick={() => handleFileClick(file)}
+                    onClick={() => !editingFileId && handleFileClick(file)}
                     onDoubleClick={(e) => handleFileDoubleClick(file, e)}
-                    className="flex items-center gap-4 p-4 bg-card rounded-lg border hover:border-primary transition-all cursor-pointer"
+                    onMouseEnter={() => setHoveredFileId(file.id)}
+                    onMouseLeave={() => setHoveredFileId(null)}
+                    className="group flex items-center gap-4 p-4 bg-card rounded-2xl border hover:border-primary transition-all cursor-pointer hover:shadow-sm"
                   >
                     {getFileIcon(file.file_type)}
+                    
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{file.filename}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{(file.file_size / 1024 / 1024).toFixed(2)} MB</span>
-                        <span>•</span>
-                        <span>{formatDistanceToNow(new Date(file.upload_date), { addSuffix: true, locale: nl })}</span>
+                      {editingFileId === file.id ? (
+                        <Input
+                          value={editingFileName}
+                          onChange={(e) => setEditingFileName(e.target.value)}
+                          onBlur={() => saveFileName(file.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveFileName(file.id);
+                            if (e.key === 'Escape') setEditingFileId(null);
+                          }}
+                          className="h-8"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <p className="font-medium truncate">{file.filename}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                        <span>{formatRelativeDate(file.upload_date)}</span>
                         {file.profiles && (
                           <>
                             <span>•</span>
@@ -401,40 +527,73 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, folder
                         )}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="flex-shrink-0">
-                      {getFileTypeLabel(file.file_type)}
-                    </Badge>
+
+                    {/* Hover Actions */}
+                    {hoveredFileId === file.id && file.owner_id === userId && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShareDialogFile(file);
+                          }}
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full"
+                          onClick={(e) => toggleFavorite(file, e)}
+                        >
+                          <Star className={`w-4 h-4 ${file.is_favorite ? 'fill-primary text-primary' : ''}`} />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Three-dot Menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                          <MoreHorizontal className="w-5 h-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(file);
-                        }}>
-                          <Download className="w-4 h-4 mr-2" />
+                      <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
+                        <DropdownMenuItem onClick={() => handleDownload(file)} className="rounded-xl py-3">
+                          <Download className="w-4 h-4 mr-3" />
                           Downloaden
                         </DropdownMenuItem>
                         {file.owner_id === userId && (
                           <>
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              setShareDialogFile(file);
-                            }}>
-                              <Share2 className="w-4 h-4 mr-2" />
-                              Delen
+                            <DropdownMenuItem onClick={() => handleDuplicate(file)} className="rounded-xl py-3">
+                              <Copy className="w-4 h-4 mr-3" />
+                              Kopie maken
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDelete(file.id);
+                                setShareDialogFile(file);
                               }}
-                              className="text-destructive"
+                              className="rounded-xl py-3"
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
+                              <ArrowUpRight className="w-4 h-4 mr-3" />
+                              Delen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => toggleFavorite(file, e)} className="rounded-xl py-3">
+                              <Star className="w-4 h-4 mr-3" />
+                              {file.is_favorite ? 'Uit favorieten verwijderen' : 'Voeg toe aan favorieten'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => startEditingName(file, e)} className="rounded-xl py-3">
+                              <Edit2 className="w-4 h-4 mr-3" />
+                              Bewerk naam
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(file.id)}
+                              className="text-destructive focus:text-destructive rounded-xl py-3"
+                            >
+                              <Trash2 className="w-4 h-4 mr-3" />
                               Verwijderen
                             </DropdownMenuItem>
                           </>
