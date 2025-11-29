@@ -5,10 +5,13 @@ import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Upload, Bell, LogOut, Menu, X } from "lucide-react";
+import { Search, Upload, Bell, LogOut, FolderPlus, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/FileUpload";
 import { FileList } from "@/components/FileList";
+import { FolderDialog } from "@/components/FolderDialog";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { authHelpers } from "@/lib/supabase";
 
 const Files = () => {
@@ -17,6 +20,9 @@ const Files = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     // Check authentication
@@ -25,6 +31,7 @@ const Files = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
+        loadUnreadCount(session.user.id);
       }
     });
 
@@ -33,11 +40,26 @@ const Files = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
+        loadUnreadCount(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const loadUnreadCount = async (userId: string) => {
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', userId)
+        .eq('read_status', false);
+      
+      setUnreadCount(count || 0);
+    } catch (error) {
+      console.error("Failed to load notification count:", error);
+    }
+  };
 
   const handleSignOut = async () => {
     const { error } = await authHelpers.signOut();
@@ -53,6 +75,11 @@ const Files = () => {
     setShowUpload(false);
     setRefreshTrigger(prev => prev + 1);
     toast.success("File uploaded successfully!");
+  };
+
+  const handleNotificationsOpen = () => {
+    setShowNotifications(true);
+    if (user) loadUnreadCount(user.id);
   };
 
   if (!user) return null;
@@ -75,8 +102,17 @@ const Files = () => {
                 variant="ghost"
                 size="icon"
                 className="relative"
+                onClick={handleNotificationsOpen}
               >
                 <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
               </Button>
               <Button
                 variant="ghost"
@@ -127,12 +163,21 @@ const Files = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Snelle toegang</h2>
-            {!showUpload && (
-              <Button onClick={() => setShowUpload(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => setShowFolderDialog(true)}
+              >
+                <FolderPlus className="w-4 h-4 mr-2" />
+                New Folder
               </Button>
-            )}
+              {!showUpload && (
+                <Button onClick={() => setShowUpload(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </Button>
+              )}
+            </div>
           </div>
 
           <Tabs defaultValue="recent" className="w-full">
@@ -186,6 +231,20 @@ const Files = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* Dialogs */}
+      <FolderDialog
+        open={showFolderDialog}
+        onClose={() => setShowFolderDialog(false)}
+        onSuccess={() => setRefreshTrigger(prev => prev + 1)}
+        userId={user.id}
+      />
+
+      <NotificationsPanel
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        userId={user.id}
+      />
     </div>
   );
 };

@@ -49,23 +49,39 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: notifData, error } = await supabase
         .from('notifications')
-        .select(`
-          *,
-          profiles!notifications_sender_id_fkey (
-            username,
-            display_name
-          ),
-          files (
-            filename
-          )
-        `)
+        .select('*')
         .eq('recipient_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setNotifications(data || []);
+
+      // Get sender profiles
+      const senderIds = [...new Set(notifData?.map(n => n.sender_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, display_name')
+        .in('id', senderIds);
+
+      // Get file info
+      const fileIds = [...new Set(notifData?.filter(n => n.file_id).map(n => n.file_id!) || [])];
+      const { data: files } = await supabase
+        .from('files')
+        .select('id, filename')
+        .in('id', fileIds);
+
+      // Map profiles and files to notifications
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const fileMap = new Map(files?.map(f => [f.id, f]) || []);
+
+      const enrichedNotifications = notifData?.map(n => ({
+        ...n,
+        profiles: profileMap.get(n.sender_id),
+        files: n.file_id ? fileMap.get(n.file_id) : undefined,
+      })) || [];
+
+      setNotifications(enrichedNotifications as Notification[]);
     } catch (error: any) {
       toast.error("Failed to load notifications");
       console.error(error);
