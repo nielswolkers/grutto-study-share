@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Microsoft 365 inspired design system */
-    --background: 0 0% 98%;
+    /* macOS-style design system - Grutto */
+    --background: 0 0% 100%;
     --foreground: 0 0% 15%;
 
     --card: 0 0% 100%;
@@ -18,10 +18,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 15%;
 
-    /* Microsoft blue palette */
-    --primary: 210 100% 42%;
+    /* Grutto green palette */
+    --primary: 157 43% 39%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 210 100% 38%;
+    --primary-hover: 157 43% 35%;
 
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 15%;
@@ -29,17 +29,17 @@ All colors MUST be HSL.
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 210 100% 95%;
-    --accent-foreground: 210 100% 42%;
+    --accent: 85 100% 90%;
+    --accent-foreground: 157 43% 39%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 210 100% 42%;
+    --input: 0 0% 94%;
+    --ring: 157 43% 39%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* File type colors */
     --file-word: 217 89% 44%;
@@ -47,10 +47,10 @@ All colors MUST be HSL.
     --file-powerpoint: 14 100% 57%;
     --file-pdf: 0 66% 47%;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    /* Shadows - macOS style */
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08);
+    --shadow-md: 0 4px 12px 0 rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 12px 24px 0 rgb(0 0 0 / 0.12);
   }
 }
 
