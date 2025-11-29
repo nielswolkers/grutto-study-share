@@ -73,7 +73,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
           .order('upload_date', { ascending: false });
       } else if (viewType === "shared") {
         // Files shared with user
-        query = supabase
+        const { data, error } = await supabase
           .from('file_shares')
           .select(`
             file_id,
@@ -85,28 +85,35 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
               upload_date,
               storage_url,
               owner_id,
-              profiles!files_owner_id_fkey (
-                username,
-                display_name
-              )
+              folder_id
             )
           `)
           .eq('shared_with_user_id', userId);
 
-        const { data, error } = await query;
         if (error) throw error;
 
-        // Transform shared files data
+        // Get owner profiles for shared files
+        const fileOwnerIds = [...new Set(data.map((item: any) => item.files.owner_id))];
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, display_name')
+          .in('id', fileOwnerIds);
+
+        if (profilesError) throw profilesError;
+
+        // Map profiles to files
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
         const transformedFiles = data.map((item: any) => ({
           ...item.files,
-          profiles: item.files.profiles,
+          profiles: profileMap.get(item.files.owner_id),
         }));
+        
         setFiles(transformedFiles);
         setLoading(false);
         return;
       } else {
         // Recent - combination of uploaded and shared
-        const [ownFiles, sharedFiles] = await Promise.all([
+        const [ownFiles, sharedFilesData] = await Promise.all([
           supabase
             .from('files')
             .select('*')
@@ -125,10 +132,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
                 upload_date,
                 storage_url,
                 owner_id,
-                profiles!files_owner_id_fkey (
-                  username,
-                  display_name
-                )
+                folder_id
               )
             `)
             .eq('shared_with_user_id', userId)
@@ -136,11 +140,19 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger }: File
         ]);
 
         if (ownFiles.error) throw ownFiles.error;
-        if (sharedFiles.error) throw sharedFiles.error;
+        if (sharedFilesData.error) throw sharedFilesData.error;
 
-        const transformedShared = sharedFiles.data.map((item: any) => ({
+        // Get owner profiles for shared files
+        const fileOwnerIds = [...new Set(sharedFilesData.data.map((item: any) => item.files.owner_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, display_name')
+          .in('id', fileOwnerIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        const transformedShared = sharedFilesData.data.map((item: any) => ({
           ...item.files,
-          profiles: item.files.profiles,
+          profiles: profileMap.get(item.files.owner_id),
         }));
 
         const combined = [...(ownFiles.data || []), ...transformedShared]
