@@ -51,6 +51,7 @@ export type Database = {
           file_size: number
           file_type: string
           filename: string
+          folder_id: string | null
           id: string
           last_accessed: string | null
           owner_id: string
@@ -62,6 +63,7 @@ export type Database = {
           file_size: number
           file_type: string
           filename: string
+          folder_id?: string | null
           id?: string
           last_accessed?: string | null
           owner_id: string
@@ -73,6 +75,7 @@ export type Database = {
           file_size?: number
           file_type?: string
           filename?: string
+          folder_id?: string | null
           id?: string
           last_accessed?: string | null
           owner_id?: string
@@ -80,7 +83,60 @@ export type Database = {
           thumbnail_url?: string | null
           upload_date?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folders: {
+        Row: {
+          color: string
+          created_at: string | null
+          id: string
+          name: string
+          owner_id: string
+          parent_folder_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          parent_folder_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          parent_folder_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
