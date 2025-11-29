@@ -33,11 +33,13 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<Profile[]>([]);
   const [currentShares, setCurrentShares] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<Profile[]>([]);
   const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadCurrentShares();
+      loadRecommendations();
     }
   }, [open, file.id]);
 
@@ -63,21 +65,61 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
     }
   };
 
+  const loadRecommendations = async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const currentUserId = session.session?.user.id;
+
+      // Get last 3 unique users shared with
+      const { data, error } = await supabase
+        .from('file_shares')
+        .select('shared_with_user_id, shared_date')
+        .eq('shared_by_user_id', currentUserId!)
+        .order('shared_date', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      // Get unique user IDs
+      const uniqueUserIds = [...new Set(data.map(s => s.shared_with_user_id))].slice(0, 3);
+
+      if (uniqueUserIds.length === 0) {
+        setRecommendations([]);
+        return;
+      }
+
+      // Fetch user profiles
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, display_name')
+        .in('id', uniqueUserIds);
+
+      if (profileError) throw profileError;
+
+      // Filter out users already shared with
+      const filtered = profiles.filter(p => !currentShares.includes(p.id));
+      setRecommendations(filtered);
+    } catch (error: any) {
+      console.error("Failed to load recommendations:", error);
+    }
+  };
+
   const searchUsers = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();
       const currentUserId = session.session?.user.id;
 
+      const query = searchQuery.toLowerCase();
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, display_name')
-        .ilike('username', `${searchQuery}%`)
         .neq('id', currentUserId!)
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(10);
 
       if (error) throw error;
 
-      // Filter out already shared users
       const filtered = data.filter(
         profile => !currentShares.includes(profile.id) &&
           !selectedUsers.some(u => u.id === profile.id)
@@ -93,6 +135,7 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
     setSelectedUsers(prev => [...prev, profile]);
     setSearchQuery("");
     setSearchResults([]);
+    setRecommendations(prev => prev.filter(p => p.id !== profile.id));
   };
 
   const removeUser = (userId: string) => {
@@ -107,7 +150,6 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
       const { data: session } = await supabase.auth.getSession();
       const currentUserId = session.session?.user.id;
 
-      // Create share records
       const shareInserts = selectedUsers.map(user => ({
         file_id: file.id,
         shared_with_user_id: user.id,
@@ -120,13 +162,12 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
 
       if (shareError) throw shareError;
 
-      // Create notifications
       const notificationInserts = selectedUsers.map(user => ({
         recipient_id: user.id,
         sender_id: currentUserId!,
         type: 'file_shared',
         file_id: file.id,
-        message: `shared "${file.filename}" with you`,
+        message: `heeft "${file.filename}" met je gedeeld`,
       }));
 
       const { error: notifError } = await supabase
@@ -135,10 +176,10 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
 
       if (notifError) console.error("Notification error:", notifError);
 
-      toast.success(`File shared with ${selectedUsers.length} user(s)`);
+      toast.success(`Bestand gedeeld met ${selectedUsers.length} gebruiker(s)`);
       onClose();
     } catch (error: any) {
-      toast.error("Failed to share file");
+      toast.error("Kon bestand niet delen");
       console.error(error);
     } finally {
       setIsSharing(false);
@@ -149,9 +190,9 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Share File</DialogTitle>
+          <DialogTitle>Bestand Delen</DialogTitle>
           <DialogDescription>
-            Share "{file.filename}" with other users
+            Deel "{file.filename}" met andere gebruikers
           </DialogDescription>
         </DialogHeader>
 
@@ -160,12 +201,33 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Enter username to share with"
+              placeholder="Zoek op naam of gebruikersnaam"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
           </div>
+
+          {/* Recommendations */}
+          {recommendations.length > 0 && searchResults.length === 0 && searchQuery === "" && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Laatst gedeeld met:</p>
+              <div className="border rounded-lg">
+                {recommendations.map(profile => (
+                  <button
+                    key={profile.id}
+                    onClick={() => addUser(profile)}
+                    className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{profile.display_name || profile.username}</p>
+                      <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Search Results */}
           {searchResults.length > 0 && (
@@ -176,10 +238,8 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
                   onClick={() => addUser(profile)}
                   className="w-full px-4 py-2 text-left hover:bg-accent transition-colors"
                 >
-                  <p className="font-medium">{profile.username}</p>
-                  {profile.display_name && (
-                    <p className="text-sm text-muted-foreground">{profile.display_name}</p>
-                  )}
+                  <p className="font-medium">{profile.display_name || profile.username}</p>
+                  <p className="text-sm text-muted-foreground">@{profile.username}</p>
                 </button>
               ))}
             </div>
@@ -188,11 +248,11 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
           {/* Selected Users */}
           {selectedUsers.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Selected users:</p>
+              <p className="text-sm font-medium">Geselecteerde gebruikers:</p>
               <div className="flex flex-wrap gap-2">
                 {selectedUsers.map(user => (
                   <Badge key={user.id} variant="secondary" className="pl-3 pr-1">
-                    {user.username}
+                    {user.display_name || user.username}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -210,7 +270,7 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
           {/* Actions */}
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+              Annuleren
             </Button>
             <Button
               onClick={handleShare}
@@ -218,7 +278,7 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
               className="flex-1"
             >
               <Share2 className="w-4 h-4 mr-2" />
-              {isSharing ? "Sharing..." : `Share with ${selectedUsers.length}`}
+              {isSharing ? "Delen..." : `Delen met ${selectedUsers.length}`}
             </Button>
           </div>
         </div>
