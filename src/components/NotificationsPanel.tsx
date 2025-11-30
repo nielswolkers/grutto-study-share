@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -8,10 +9,9 @@ import {
   SheetTitle,
 } from "./ui/sheet";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { FileText, CheckCheck, Trash2 } from "lucide-react";
+import { FileText, X, FileIcon } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeDate } from "@/lib/dateUtils";
 
 interface NotificationsPanelProps {
   open: boolean;
@@ -37,6 +37,7 @@ interface Notification {
 }
 
 export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanelProps) => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -126,119 +127,122 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
         prev.map(n => ({ ...n, read_status: true }))
       );
       
-      toast.success("All notifications marked as read");
+      toast.success("Alle meldingen gemarkeerd als gelezen");
     } catch (error: any) {
-      toast.error("Failed to update notifications");
+      toast.error("Kon meldingen niet bijwerken");
     }
   };
 
-  const deleteNotification = async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read
+    if (!notification.read_status) {
+      await markAsRead(notification.id);
+    }
 
-      if (error) throw error;
-      
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      toast.success("Notification deleted");
-    } catch (error: any) {
-      toast.error("Failed to delete notification");
+    // Navigate to file preview if it's a file-related notification
+    if (notification.file_id) {
+      onClose();
+      navigate(`/preview/${notification.file_id}`);
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read_status).length;
+  const getFileIcon = (filename: string) => {
+    if (!filename) return <FileIcon className="w-5 h-5 text-muted-foreground" />;
+    const ext = filename.split('.').pop()?.toLowerCase();
+    
+    if (ext === 'pdf') {
+      return <FileText className="w-5 h-5" style={{ color: 'hsl(var(--file-pdf))' }} />;
+    } else if (ext === 'docx' || ext === 'doc') {
+      return <FileText className="w-5 h-5" style={{ color: 'hsl(var(--file-word))' }} />;
+    }
+    return <FileIcon className="w-5 h-5 text-muted-foreground" />;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-lg p-0">
+        <div className="p-6 border-b">
           <div className="flex items-center justify-between">
-            <div>
-              <SheetTitle>Notifications</SheetTitle>
-              <SheetDescription>
-                {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
-              </SheetDescription>
-            </div>
-            {unreadCount > 0 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={markAllAsRead}
-              >
-                <CheckCheck className="w-4 h-4 mr-2" />
-                Mark all read
-              </Button>
-            )}
+            <SheetTitle className="text-xl">Meldingen</SheetTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={markAllAsRead}
+              className="text-sm"
+            >
+              Wis alles
+            </Button>
           </div>
-        </SheetHeader>
+        </div>
 
-        <div className="mt-6 space-y-2">
+        <div className="p-6 space-y-6 overflow-auto max-h-[calc(100vh-100px)]">
           {loading && (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
 
           {!loading && notifications.length === 0 && (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No notifications yet</p>
+              <p className="text-muted-foreground">Geen meldingen</p>
             </div>
           )}
 
           {!loading && notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-4 rounded-lg border ${
-                notification.read_status ? 'bg-card' : 'bg-accent/50'
-              }`}
+              className="space-y-3 cursor-pointer"
+              onClick={() => handleNotificationClick(notification)}
             >
+              {/* Sender and action */}
               <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                    <p className="font-medium text-sm truncate">
-                      {notification.profiles?.display_name || notification.profiles?.username}
-                    </p>
-                    {!notification.read_status && (
-                      <Badge variant="secondary" className="ml-auto">New</Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {notification.message}
-                  </p>
-                  {notification.files && (
-                    <p className="text-sm font-medium mt-1 truncate">
-                      "{notification.files.filename}"
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  {!notification.read_status && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => markAsRead(notification.id)}
-                    >
-                      <CheckCheck className="w-4 h-4" />
-                    </Button>
-                  )}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => deleteNotification(notification.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                <p className="text-base flex-1">
+                  <span className="font-medium">
+                    {notification.profiles?.display_name || notification.profiles?.username}
+                  </span>
+                  {' '}heeft een bestand met u gedeeld.
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-3 text-xs rounded-full bg-secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markAsRead(notification.id);
+                  }}
+                >
+                  Wis
+                </Button>
               </div>
+
+              {/* File card */}
+              {notification.files && (
+                <div className="bg-secondary/30 rounded-xl p-4 flex items-center gap-3">
+                  {getFileIcon(notification.files.filename)}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {notification.files.filename}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      0.20 MB
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamp */}
+              <p className="text-sm text-muted-foreground">
+                {formatRelativeDate(notification.created_at)}
+              </p>
             </div>
           ))}
         </div>

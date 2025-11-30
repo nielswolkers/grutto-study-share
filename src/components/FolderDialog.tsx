@@ -21,14 +21,13 @@ interface FolderDialogProps {
 }
 
 const FOLDER_COLORS = [
-  { name: "Mint", color: "#B8E6D5" },
-  { name: "Lavender", color: "#E4D4F4" },
-  { name: "Peach", color: "#FFD4C2" },
-  { name: "Sky", color: "#C2E0FF" },
-  { name: "Lemon", color: "#FFF4B8" },
-  { name: "Rose", color: "#FFD4E5" },
-  { name: "Sage", color: "#D4E8D4" },
-  { name: "Coral", color: "#FFB8C2" },
+  { name: "Oranje", color: "#ECA869" },
+  { name: "Roze", color: "#E4B4E6" },
+  { name: "Rood", color: "#E86C6C" },
+  { name: "Blauw", color: "#7FABDB" },
+  { name: "Groen", color: "#6BC497" },
+  { name: "Donkerblauw", color: "#4B8FBA" },
+  { name: "Geel", color: "#E8C547" },
 ];
 
 export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogProps) => {
