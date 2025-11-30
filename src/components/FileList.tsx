@@ -357,21 +357,28 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
 
   const toggleFavorite = async (file: FileData, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Optimistic update - instant UI change
+    const newFavoriteState = !file.is_favorite;
+    setFiles(prev => prev.map(f => 
+      f.id === file.id ? { ...f, is_favorite: newFavoriteState } : f
+    ));
+    
+    toast.success(newFavoriteState ? "Toegevoegd aan favorieten" : "Uit favorieten verwijderd");
+    onFavoritesChange();
+    
     try {
       const { error } = await supabase
         .from('files')
-        .update({ is_favorite: !file.is_favorite })
+        .update({ is_favorite: newFavoriteState })
         .eq('id', file.id);
 
       if (error) throw error;
-
-      setFiles(prev => prev.map(f => 
-        f.id === file.id ? { ...f, is_favorite: !f.is_favorite } : f
-      ));
-      
-      toast.success(file.is_favorite ? "Uit favorieten verwijderd" : "Toegevoegd aan favorieten");
-      onFavoritesChange();
     } catch (error: any) {
+      // Rollback on error
+      setFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, is_favorite: file.is_favorite } : f
+      ));
       toast.error("Kon favoriet niet bijwerken");
       console.error(error);
     }
@@ -407,8 +414,29 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
     }
   };
 
-  const handleDragStart = (fileId: string) => {
+  const handleDragStart = (fileId: string, file: FileData, e: React.DragEvent) => {
     setDraggedFile(fileId);
+    
+    // Create custom drag image with 2:1 aspect ratio (narrower)
+    const dragPreview = document.createElement('div');
+    dragPreview.className = 'flex items-center gap-2 p-3 bg-white rounded-xl border-2 border-primary shadow-lg';
+    dragPreview.style.width = '120px'; // Narrower width
+    dragPreview.style.height = '60px'; // 2:1 ratio
+    
+    const iconContainer = document.createElement('div');
+    iconContainer.innerHTML = getFileIcon(file.file_type).type === Image 
+      ? '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+      : '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    
+    dragPreview.appendChild(iconContainer);
+    
+    document.body.appendChild(dragPreview);
+    dragPreview.style.position = 'absolute';
+    dragPreview.style.top = '-1000px';
+    
+    e.dataTransfer.setDragImage(dragPreview, 60, 30);
+    
+    setTimeout(() => document.body.removeChild(dragPreview), 0);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -446,59 +474,27 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
   }
 
   return (
-    <div className="space-y-4">
-      {/* Folders - Only in Recent view */}
-      {viewType === "recent" && folders.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold mb-3">Mappen</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {folders.map(folder => (
-              <div
-                key={folder.id}
-                onClick={() => navigate(`/folder/${folder.id}`)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleDropOnFolder(folder.id);
-                }}
-                className="p-5 rounded-2xl cursor-pointer transition-all hover:scale-105 hover:shadow-md bg-card border-2"
-                style={{ borderColor: folder.color }}
-              >
-                <Folder className="w-10 h-10 mb-3" style={{ color: folder.color }} />
-                <p className="font-semibold text-sm truncate">{folder.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">{folder.fileCount} bestand(en)</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-2">
       {/* Files */}
-      {files.length === 0 && folders.length === 0 ? (
+      {files.length === 0 ? (
         <div className="text-center py-12">
           <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">Geen bestanden gevonden</p>
         </div>
       ) : (
-        <>
-          {files.length > 0 && (
-            <>
-              {viewType === "recent" && folders.length > 0 && (
-                <h3 className="text-sm font-semibold mt-8 mb-3">Bestanden</h3>
-              )}
-              <div className="space-y-2">
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    draggable={!editingFileId}
-                    onDragStart={() => handleDragStart(file.id)}
-                    onClick={() => !editingFileId && handleFileClick(file)}
-                    onDoubleClick={(e) => handleFileDoubleClick(file, e)}
-                    onMouseEnter={() => setHoveredFileId(file.id)}
-                    onMouseLeave={() => setHoveredFileId(null)}
-                    className="group flex items-center gap-4 p-4 bg-card rounded-2xl border hover:border-primary transition-all cursor-pointer hover:shadow-sm"
-                  >
-                    {getFileIcon(file.file_type)}
+        <div className="space-y-2">
+          {files.map((file) => (
+            <div
+              key={file.id}
+              draggable={!editingFileId}
+              onDragStart={(e) => handleDragStart(file.id, file, e)}
+              onClick={() => !editingFileId && handleFileClick(file)}
+              onDoubleClick={(e) => handleFileDoubleClick(file, e)}
+              onMouseEnter={() => setHoveredFileId(file.id)}
+              onMouseLeave={() => setHoveredFileId(null)}
+              className="group flex items-center gap-4 p-4 bg-white rounded-2xl border hover:border-primary/20 transition-all cursor-pointer hover:shadow-sm"
+            >
+              {getFileIcon(file.file_type)}
                     
                     <div className="flex-1 min-w-0">
                       {editingFileId === file.id ? (
@@ -603,10 +599,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
                   </div>
                 ))}
               </div>
-            </>
-          )}
-        </>
-      )}
+            )}
 
       {shareDialogFile && (
         <ShareDialog

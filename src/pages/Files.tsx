@@ -125,59 +125,62 @@ const Files = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Logo */}
-      <div className="max-w-7xl mx-auto px-6 pt-6">
-        <img src={gruttoLogo} alt="Grutto" className="h-10" />
-      </div>
-
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-8 py-8">
         {/* Top Bar with Tabs and Actions */}
-        <div className="mb-6 flex items-center justify-between gap-4 h-14">
+        <div className="mb-8 flex items-center justify-between gap-4">
           {/* View Tabs */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant={activeView === "recent" ? "default" : "ghost"}
+          <div className="flex items-center gap-8">
+            <button
               onClick={() => setActiveView("recent")}
-              className="rounded-full px-6"
+              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+                activeView === "recent" 
+                  ? "border-foreground text-foreground" 
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
             >
               Recent
-            </Button>
-            <Button
-              variant={activeView === "shared" ? "default" : "ghost"}
+            </button>
+            <button
               onClick={() => setActiveView("shared")}
-              className="rounded-full px-6"
+              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+                activeView === "shared" 
+                  ? "border-foreground text-foreground" 
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
             >
               Gedeeld
-            </Button>
-            <Button
-              variant={activeView === "favorites" ? "default" : "ghost"}
+            </button>
+            <button
               onClick={() => setActiveView("favorites")}
-              className="rounded-full px-6"
+              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+                activeView === "favorites" 
+                  ? "border-foreground text-foreground" 
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
             >
               Favorieten
-            </Button>
+            </button>
           </div>
 
           {/* Actions Group */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Search */}
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Zoeken..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-full bg-secondary/50 border-0"
+                className="pl-10 h-11 rounded-lg bg-secondary/30 border-0 focus-visible:ring-1"
               />
             </div>
 
             {/* Folder Creation */}
             <Button
-              variant="outline"
               onClick={() => setShowFolderDialog(true)}
-              className="rounded-full gap-2"
+              className="rounded-lg gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <FolderPlus className="w-4 h-4" />
               Voeg map toe
@@ -185,9 +188,8 @@ const Files = () => {
 
             {/* Upload */}
             <Button
-              variant="outline"
               onClick={() => setShowUpload(!showUpload)}
-              className="rounded-full gap-2"
+              className="rounded-lg gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Upload className="w-4 h-4" />
               Importeer
@@ -197,7 +199,7 @@ const Files = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="relative rounded-full"
+              className="relative h-11 w-11"
               onClick={handleNotificationsOpen}
             >
               <Bell className="w-5 h-5" />
@@ -221,10 +223,10 @@ const Files = () => {
         )}
 
         {/* Folders Section */}
-        {activeView === "recent" && folders.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-base font-semibold mb-4">Mappen</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {activeView === "recent" && (
+          <div className="mb-10">
+            <h2 className="text-lg font-semibold mb-5">Mappen</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
               {folders.map((folder) => (
                 <FolderCard
                   key={folder.id}
@@ -238,15 +240,15 @@ const Files = () => {
         )}
 
         {/* Files Section with Sort */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold">Bestanden</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold">Bestanden</h2>
           
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Sorteren:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "name" | "date")}
-              className="h-8 px-3 rounded-full border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-9 px-3 rounded-lg border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="name">Naam (A-Z)</option>
               <option value="date">Datum</option>

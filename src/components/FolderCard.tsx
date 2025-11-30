@@ -71,36 +71,37 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
 
   return (
     <div
-      className="relative bg-white rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer group border border-transparent"
+      className="relative bg-white rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer group"
       onClick={() => navigate(`/folder/${folder.id}`)}
       onMouseEnter={() => setShowMenu(true)}
       onMouseLeave={() => setShowMenu(false)}
     >
       {/* Three dots menu - appears on hover */}
       {showMenu && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-4 right-4 z-10" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-full bg-secondary/80 hover:bg-secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
               >
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement edit
-                toast.info("Bewerken komt binnenkort");
+                toast.info("Naam wijzigen komt binnenkort");
               }}>
                 <Edit2 className="w-4 h-4 mr-2" />
                 Naam wijzigen
               </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement color change
                 toast.info("Kleur wijzigen komt binnenkort");
               }}>
                 <Folder className="w-4 h-4 mr-2" />
@@ -108,7 +109,6 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
               </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement copy
                 toast.info("Kopiëren komt binnenkort");
               }}>
                 <Copy className="w-4 h-4 mr-2" />
@@ -116,7 +116,6 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
               </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement download as zip
                 toast.info("Downloaden komt binnenkort");
               }}>
                 <Download className="w-4 h-4 mr-2" />
@@ -135,8 +134,8 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
       )}
 
       {/* Folder Icon */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-20 h-16">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-24 h-20">
           <img 
             src={getFolderIcon(folder.color)} 
             alt={folder.name}
@@ -146,8 +145,8 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
         
         {/* Folder Name */}
         <div className="text-center w-full">
-          <p className="font-medium text-sm truncate">{folder.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="font-medium text-base truncate">{folder.name}</p>
+          <p className="text-sm text-muted-foreground mt-1">
             {fileCount} bestand{fileCount !== 1 ? 'en' : ''}
           </p>
         </div>
