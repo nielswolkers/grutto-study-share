@@ -12,6 +12,13 @@ import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { FolderPlus } from "lucide-react";
 import { toast } from "sonner";
+import folderOrange from "@/assets/folder-orange.png";
+import folderPink from "@/assets/folder-pink.png";
+import folderRed from "@/assets/folder-red.png";
+import folderBlue from "@/assets/folder-blue.png";
+import folderGreen from "@/assets/folder-green.png";
+import folderBlueDark from "@/assets/folder-blue-dark.png";
+import folderYellow from "@/assets/folder-yellow.png";
 
 interface FolderDialogProps {
   open: boolean;
@@ -21,13 +28,13 @@ interface FolderDialogProps {
 }
 
 const FOLDER_COLORS = [
-  { name: "Oranje", color: "#ECA869" },
-  { name: "Roze", color: "#E4B4E6" },
-  { name: "Rood", color: "#E86C6C" },
-  { name: "Blauw", color: "#7FABDB" },
-  { name: "Groen", color: "#6BC497" },
-  { name: "Donkerblauw", color: "#4B8FBA" },
-  { name: "Geel", color: "#E8C547" },
+  { name: "Oranje", color: "#ECA869", icon: folderOrange },
+  { name: "Roze", color: "#E4B4E6", icon: folderPink },
+  { name: "Rood", color: "#E86C6C", icon: folderRed },
+  { name: "Blauw", color: "#7FABDB", icon: folderBlue },
+  { name: "Groen", color: "#6BC497", icon: folderGreen },
+  { name: "Donkerblauw", color: "#4B8FBA", icon: folderBlueDark },
+  { name: "Geel", color: "#E8C547", icon: folderYellow },
 ];
 
 export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogProps) => {
@@ -92,19 +99,24 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId }: FolderDialogP
           {/* Color Selection */}
           <div className="space-y-2">
             <Label>Mapkleur</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-3">
               {FOLDER_COLORS.map((colorOption) => (
                 <button
                   key={colorOption.color}
                   onClick={() => setSelectedColor(colorOption.color)}
-                  className={`h-12 rounded-lg transition-all ${
+                  className={`h-20 rounded-xl border-2 transition-all flex items-center justify-center bg-white ${
                     selectedColor === colorOption.color
-                      ? "ring-2 ring-primary ring-offset-2"
-                      : "hover:scale-105"
+                      ? "border-primary ring-2 ring-primary/20 scale-105"
+                      : "border-border hover:border-primary/50"
                   }`}
-                  style={{ backgroundColor: colorOption.color }}
                   title={colorOption.name}
-                />
+                >
+                  <img 
+                    src={colorOption.icon} 
+                    alt={colorOption.name}
+                    className="w-12 h-10 object-contain"
+                  />
+                </button>
               ))}
             </div>
           </div>
