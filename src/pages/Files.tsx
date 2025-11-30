@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Upload, Bell, LogOut, FolderPlus, Star } from "lucide-react";
+import { Search, Upload, Bell, LogOut, FolderPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/FileUpload";
 import { FileList } from "@/components/FileList";
 import { FolderDialog } from "@/components/FolderDialog";
+import { FolderCard } from "@/components/FolderCard";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { authHelpers } from "@/lib/supabase";
 import gruttoLogo from "@/assets/grutto-logo.png";
@@ -24,9 +25,10 @@ const Files = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeView, setActiveView] = useState<"recent" | "shared" | "favorites">("recent");
-  const [hasFavorites, setHasFavorites] = useState(false);
   const [sortBy, setSortBy] = useState<"name" | "date">("date");
   const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
+  const [folders, setFolders] = useState<any[]>([]);
+  const [folderFileCounts, setFolderFileCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -35,7 +37,7 @@ const Files = () => {
       } else {
         setUser(session.user);
         loadUnreadCount(session.user.id);
-        checkFavorites(session.user.id);
+        loadFolders(session.user.id);
       }
     });
 
@@ -45,7 +47,7 @@ const Files = () => {
       } else {
         setUser(session.user);
         loadUnreadCount(session.user.id);
-        checkFavorites(session.user.id);
+        loadFolders(session.user.id);
       }
     });
 
@@ -66,17 +68,30 @@ const Files = () => {
     }
   };
 
-  const checkFavorites = async (userId: string) => {
+  const loadFolders = async (userId: string) => {
     try {
-      const { count } = await supabase
-        .from('files')
-        .select('*', { count: 'exact', head: true })
+      const { data: foldersData, error } = await supabase
+        .from('folders')
+        .select('*')
         .eq('owner_id', userId)
-        .eq('is_favorite', true);
-      
-      setHasFavorites((count || 0) > 0);
+        .order('name');
+
+      if (error) throw error;
+
+      setFolders(foldersData || []);
+
+      // Load file counts for each folder
+      const counts: Record<string, number> = {};
+      for (const folder of foldersData || []) {
+        const { count } = await supabase
+          .from('files')
+          .select('*', { count: 'exact', head: true })
+          .eq('folder_id', folder.id);
+        counts[folder.id] = count || 0;
+      }
+      setFolderFileCounts(counts);
     } catch (error) {
-      console.error("Failed to check favorites:", error);
+      console.error("Failed to load folders:", error);
     }
   };
 
@@ -103,7 +118,7 @@ const Files = () => {
 
   const handleFolderCreated = () => {
     setRefreshTrigger(prev => prev + 1);
-    if (user) checkFavorites(user.id);
+    if (user) loadFolders(user.id);
   };
 
   if (!user) return null;
@@ -117,68 +132,65 @@ const Files = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {/* Top Bar with Tabs and Actions - Increased height */}
-        <div className="mb-6 flex items-center justify-between gap-4 h-16">
+        {/* Top Bar with Tabs and Actions */}
+        <div className="mb-6 flex items-center justify-between gap-4 h-14">
           {/* View Tabs */}
           <div className="flex items-center gap-1">
             <Button
               variant={activeView === "recent" ? "default" : "ghost"}
               onClick={() => setActiveView("recent")}
-              className="rounded-full"
+              className="rounded-full px-6"
             >
               Recent
             </Button>
             <Button
               variant={activeView === "shared" ? "default" : "ghost"}
               onClick={() => setActiveView("shared")}
-              className="rounded-full"
+              className="rounded-full px-6"
             >
               Gedeeld
             </Button>
-            {hasFavorites && (
-              <Button
-                variant={activeView === "favorites" ? "default" : "ghost"}
-                onClick={() => setActiveView("favorites")}
-                className="rounded-full"
-              >
-                <Star className="w-4 h-4 mr-2" />
-                Favorieten
-              </Button>
-            )}
+            <Button
+              variant={activeView === "favorites" ? "default" : "ghost"}
+              onClick={() => setActiveView("favorites")}
+              className="rounded-full px-6"
+            >
+              Favorieten
+            </Button>
           </div>
 
           {/* Actions Group */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Search */}
-            <div className="relative w-64">
+            <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Zoeken..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-full bg-secondary border-0"
+                className="pl-9 h-10 rounded-full bg-secondary/50 border-0"
               />
             </div>
 
             {/* Folder Creation */}
             <Button
               variant="outline"
-              size="icon"
               onClick={() => setShowFolderDialog(true)}
-              className="rounded-full"
+              className="rounded-full gap-2"
             >
-              <FolderPlus className="w-5 h-5" />
+              <FolderPlus className="w-4 h-4" />
+              Voeg map toe
             </Button>
 
             {/* Upload */}
             <Button
               variant="outline"
-              size="icon"
               onClick={() => setShowUpload(!showUpload)}
-              className="rounded-full"
+              className="rounded-full gap-2"
             >
-              <Upload className="w-5 h-5" />
+              <Upload className="w-4 h-4" />
+              Importeer
             </Button>
 
             {/* Notifications */}
@@ -198,16 +210,6 @@ const Files = () => {
                 </Badge>
               )}
             </Button>
-
-            {/* Logout */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-              className="rounded-full"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
           </div>
         </div>
 
@@ -218,46 +220,40 @@ const Files = () => {
           </div>
         )}
 
-        {/* Sort and Filter Bar - Compact, one line */}
-        <div className="mb-4 flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Sorteren:</span>
-            <Button
-              variant={sortBy === "name" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setSortBy("name")}
-              className="h-8 rounded-full"
-            >
-              Naam (A-Z)
-            </Button>
-            <Button
-              variant={sortBy === "date" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setSortBy("date")}
-              className="h-8 rounded-full"
-            >
-              Datum
-            </Button>
+        {/* Folders Section */}
+        {activeView === "recent" && folders.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-base font-semibold mb-4">Mappen</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {folders.map((folder) => (
+                <FolderCard
+                  key={folder.id}
+                  folder={folder}
+                  fileCount={folderFileCounts[folder.id] || 0}
+                  onUpdate={() => loadFolders(user.id)}
+                />
+              ))}
+            </div>
           </div>
+        )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Type:</span>
+        {/* Files Section with Sort */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold">Bestanden</h2>
+          
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Sorteren:</span>
             <select
-              value={fileTypeFilter}
-              onChange={(e) => setFileTypeFilter(e.target.value)}
-              className="h-8 px-3 rounded-full border bg-background text-sm"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "name" | "date")}
+              className="h-8 px-3 rounded-full border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">Alle bestanden</option>
-              <option value="pdf">PDF</option>
-              <option value="word">Word</option>
-              <option value="excel">Excel</option>
-              <option value="powerpoint">PowerPoint</option>
-              <option value="image">Afbeeldingen</option>
+              <option value="name">Naam (A-Z)</option>
+              <option value="date">Datum</option>
             </select>
           </div>
         </div>
 
-        {/* Files Section */}
         <FileList 
           userId={user.id} 
           viewType={activeView}
@@ -265,7 +261,7 @@ const Files = () => {
           refreshTrigger={refreshTrigger}
           sortBy={sortBy}
           fileTypeFilter={fileTypeFilter}
-          onFavoritesChange={() => checkFavorites(user.id)}
+          onFavoritesChange={() => {}}
         />
       </main>
 
