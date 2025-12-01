@@ -74,6 +74,7 @@ const Files = () => {
         .from('folders')
         .select('*')
         .eq('owner_id', userId)
+        .is('parent_folder_id', null)
         .order('name');
 
       if (error) throw error;
@@ -123,17 +124,49 @@ const Files = () => {
 
   if (!user) return null;
 
+  const handleRootDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const fileId = e.dataTransfer.getData('application/grutto-file-id');
+    const folderId = e.dataTransfer.getData('application/grutto-folder-id');
+
+    try {
+      if (fileId) {
+        const { error } = await supabase
+          .from('files')
+          .update({ folder_id: null })
+          .eq('id', fileId);
+        if (error) throw error;
+        toast.success('Bestand naar hoofdmap verplaatst');
+      } else if (folderId) {
+        const { error } = await supabase
+          .from('folders')
+          .update({ parent_folder_id: null })
+          .eq('id', folderId);
+        if (error) throw error;
+        toast.success('Map naar hoofdmap verplaatst');
+      }
+
+      if (user) loadFolders(user.id);
+    } catch (error) {
+      console.error('Kon item niet verplaatsen', error);
+      toast.error('Kon item niet verplaatsen');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-8 py-8">
+    <div className="min-h-screen bg-background flex items-start justify-center py-10">
+      <main
+        className="relative w-full max-w-6xl bg-card rounded-[32px] shadow-lg border border-border/60 px-10 py-8"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleRootDrop}
+      >
         {/* Top Bar with Tabs and Actions */}
-        <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="mb-8 flex items-center justify-between gap-6">
           {/* View Tabs */}
           <div className="flex items-center gap-8">
             <button
               onClick={() => setActiveView("recent")}
-              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "recent" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -143,7 +176,7 @@ const Files = () => {
             </button>
             <button
               onClick={() => setActiveView("shared")}
-              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "shared" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -153,7 +186,7 @@ const Files = () => {
             </button>
             <button
               onClick={() => setActiveView("favorites")}
-              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "favorites" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -173,14 +206,14 @@ const Files = () => {
                 placeholder="Zoeken..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 rounded-lg bg-secondary/30 border-0 focus-visible:ring-1"
+                className="pl-10 h-11 rounded-full bg-secondary border-0 focus-visible:ring-1"
               />
             </div>
 
             {/* Folder Creation */}
             <Button
               onClick={() => setShowFolderDialog(true)}
-              className="rounded-lg gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="rounded-full gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary-hover px-5"
             >
               <FolderPlus className="w-4 h-4" />
               Voeg map toe
@@ -189,7 +222,7 @@ const Files = () => {
             {/* Upload */}
             <Button
               onClick={() => setShowUpload(!showUpload)}
-              className="rounded-lg gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="rounded-full gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary-hover px-5"
             >
               <Upload className="w-4 h-4" />
               Importeer
@@ -199,7 +232,7 @@ const Files = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-11 w-11"
+              className="relative h-11 w-11 rounded-full"
               onClick={handleNotificationsOpen}
             >
               <Bell className="w-5 h-5" />
@@ -217,16 +250,16 @@ const Files = () => {
 
         {/* Upload Section */}
         {showUpload && (
-          <div className="mb-6 p-6 bg-card rounded-2xl shadow-sm border">
+          <div className="mb-6 p-6 bg-secondary rounded-2xl shadow-sm border border-border/60">
             <FileUpload userId={user.id} onUploadComplete={handleUploadComplete} />
           </div>
         )}
 
         {/* Folders Section */}
         {activeView === "recent" && (
-          <div className="mb-10">
-            <h2 className="text-lg font-semibold mb-5">Mappen</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+          <div className="mb-8">
+            <h2 className="text-sm font-semibold mb-4 text-muted-foreground">Mappen</h2>
+            <div className="flex gap-6 overflow-x-auto pb-2">
               {folders.map((folder) => (
                 <FolderCard
                   key={folder.id}
@@ -240,15 +273,14 @@ const Files = () => {
         )}
 
         {/* Files Section with Sort */}
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold">Bestanden</h2>
-          
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-muted-foreground">Bestanden</h2>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Sorteren:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "name" | "date")}
-              className="h-9 px-3 rounded-lg border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              className="h-9 px-3 rounded-full border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="name">Naam (A-Z)</option>
               <option value="date">Datum</option>
@@ -265,21 +297,20 @@ const Files = () => {
           fileTypeFilter={fileTypeFilter}
           onFavoritesChange={() => {}}
         />
+
+        <FolderDialog
+          open={showFolderDialog}
+          onClose={() => setShowFolderDialog(false)}
+          onSuccess={handleFolderCreated}
+          userId={user.id}
+        />
+
+        <NotificationsPanel
+          open={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          userId={user.id}
+        />
       </main>
-
-      {/* Dialogs */}
-      <FolderDialog
-        open={showFolderDialog}
-        onClose={() => setShowFolderDialog(false)}
-        onSuccess={handleFolderCreated}
-        userId={user.id}
-      />
-
-      <NotificationsPanel
-        open={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        userId={user.id}
-      />
     </div>
   );
 };

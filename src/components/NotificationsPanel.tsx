@@ -224,7 +224,6 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
                 </Button>
               </div>
 
-              {/* File card */}
               {notification.files && (
                 <div className="bg-secondary/30 rounded-xl p-4 flex items-center gap-3">
                   {getFileIcon(notification.files.filename)}
