@@ -42,7 +42,6 @@ const FOLDER_ICON_MAP: Record<string, string> = {
 
 export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => {
   const navigate = useNavigate();
-  const [showMenu, setShowMenu] = useState(false);
 
   const getFolderIcon = (color: string) => {
     return FOLDER_ICON_MAP[color] || folderGreen;
@@ -69,69 +68,113 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
     }
   };
 
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const fileId = e.dataTransfer.getData('application/grutto-file-id');
+    const draggedFolderId = e.dataTransfer.getData('application/grutto-folder-id');
+
+    try {
+      if (fileId) {
+        const { error } = await supabase
+          .from('files')
+          .update({ folder_id: folder.id })
+          .eq('id', fileId);
+
+        if (error) throw error;
+        toast.success('Bestand verplaatst naar map');
+      } else if (draggedFolderId && draggedFolderId !== folder.id) {
+        const { error } = await supabase
+          .from('folders')
+          .update({ parent_folder_id: folder.id })
+          .eq('id', draggedFolderId);
+
+        if (error) throw error;
+        toast.success('Map verplaatst naar map');
+      }
+
+      onUpdate();
+    } catch (error: any) {
+      toast.error('Kon item niet verplaatsen');
+      console.error(error);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/grutto-folder-id', folder.id);
+  };
+
   return (
     <div
-      className="relative bg-white rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer group"
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+      className="group relative bg-card rounded-3xl p-6 shadow-md border border-border/60 cursor-pointer transition-all hover:shadow-lg"
       onClick={() => navigate(`/folder/${folder.id}`)}
-      onMouseEnter={() => setShowMenu(true)}
-      onMouseLeave={() => setShowMenu(false)}
     >
       {/* Three dots menu - appears on hover */}
-      {showMenu && (
-        <div className="absolute top-4 right-4 z-10" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full bg-secondary/80 hover:bg-secondary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={(e) => {
+      <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-secondary/80 hover:bg-secondary"
+              onClick={(e) => {
                 e.stopPropagation();
-                toast.info("Naam wijzigen komt binnenkort");
-              }}>
-                <Edit2 className="w-4 h-4 mr-2" />
-                Naam wijzigen
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                toast.info("Kleur wijzigen komt binnenkort");
-              }}>
-                <Folder className="w-4 h-4 mr-2" />
-                Kleur wijzigen
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                toast.info("Kopiëren komt binnenkort");
-              }}>
-                <Copy className="w-4 h-4 mr-2" />
-                Kopiëren
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                toast.info("Downloaden komt binnenkort");
-              }}>
-                <Download className="w-4 h-4 mr-2" />
-                Download als ZIP
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Verwijderen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+              }}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Naam wijzigen komt binnenkort');
+            }} className="rounded-xl py-3">
+              <Edit2 className="w-4 h-4 mr-2" />
+              Naam wijzigen
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Kleur wijzigen komt binnenkort');
+            }} className="rounded-xl py-3">
+              <Folder className="w-4 h-4 mr-2" />
+              Kleur wijzigen
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Map delen komt binnenkort');
+            }} className="rounded-xl py-3">
+              <Folder className="w-4 h-4 mr-2" />
+              Deel map
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Kopiëren komt binnenkort');
+            }} className="rounded-xl py-3">
+              <Copy className="w-4 h-4 mr-2" />
+              Kopiëren
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Downloaden komt binnenkort');
+            }} className="rounded-xl py-3">
+              <Download className="w-4 h-4 mr-2" />
+              Download als ZIP
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={handleDelete}
+              className="text-destructive focus:text-destructive rounded-xl py-3"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Verwijderen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Folder Icon */}
       <div className="flex flex-col items-center gap-4">
@@ -142,8 +185,6 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
             className="w-full h-full object-contain"
           />
         </div>
-        
-        {/* Folder Name */}
         <div className="text-center w-full">
           <p className="font-medium text-base truncate">{folder.name}</p>
           <p className="text-sm text-muted-foreground mt-1">

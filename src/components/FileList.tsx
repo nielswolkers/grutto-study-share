@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, FileSpreadsheet, Download, Share2, Trash2, MoreHorizontal, Folder, Image, Star, Copy, Edit2, ArrowUpRight } from "lucide-react";
+import { FileText, FileSpreadsheet, Download, Trash2, MoreHorizontal, Folder, Image, Star, Copy, Edit2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { 
@@ -13,6 +13,7 @@ import {
 import { ShareDialog } from "./ShareDialog";
 import { toast } from "sonner";
 import { formatRelativeDate } from "@/lib/dateUtils";
+import shareIcon from "@/assets/share-icon.png";
 
 interface FileListProps {
   userId: string;
@@ -50,10 +51,10 @@ interface FolderData {
 
 const getFileIcon = (fileType: string) => {
   if (fileType.includes('image')) return <Image className="w-5 h-5" />;
-  if (fileType.includes('word')) return <FileText className="w-5 h-5" style={{ color: 'hsl(217, 89%, 44%)' }} />;
-  if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FileSpreadsheet className="w-5 h-5" style={{ color: 'hsl(142, 76%, 36%)' }} />;
-  if (fileType.includes('powerpoint') || fileType.includes('presentation')) return <FileSpreadsheet className="w-5 h-5" style={{ color: 'hsl(14, 100%, 57%)' }} />;
-  if (fileType.includes('pdf')) return <FileText className="w-5 h-5" style={{ color: 'hsl(0, 66%, 47%)' }} />;
+  if (fileType.includes('word')) return <FileText className="w-5 h-5 text-file-word" />;
+  if (fileType.includes('excel') || fileType.includes('spreadsheet')) return <FileSpreadsheet className="w-5 h-5 text-file-excel" />;
+  if (fileType.includes('powerpoint') || fileType.includes('presentation')) return <FileSpreadsheet className="w-5 h-5 text-file-powerpoint" />;
+  if (fileType.includes('pdf')) return <FileText className="w-5 h-5 text-file-pdf" />;
   return <FileText className="w-5 h-5 text-muted-foreground" />;
 };
 
@@ -69,6 +70,7 @@ const getFileTypeLabel = (fileType: string) => {
 export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy, fileTypeFilter, onFavoritesChange }: FileListProps) => {
   const navigate = useNavigate();
   const [files, setFiles] = useState<FileData[]>([]);
+  const [allFiles, setAllFiles] = useState<FileData[]>([]);
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareDialogFile, setShareDialogFile] = useState<FileData | null>(null);
@@ -83,6 +85,10 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
       loadFolders();
     }
   }, [userId, viewType, refreshTrigger]);
+
+  useEffect(() => {
+    setFiles(filterAndSortFiles(allFiles));
+  }, [searchQuery, fileTypeFilter, sortBy, allFiles]);
 
   const loadFolders = async () => {
     try {
@@ -206,6 +212,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
         const allFiles = [...ownFiles.data, ...sharedFiles]
           .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
         
+        setAllFiles(allFiles);
         setFiles(filterAndSortFiles(allFiles));
         setLoading(false);
         return;
@@ -416,26 +423,25 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
 
   const handleDragStart = (fileId: string, file: FileData, e: React.DragEvent) => {
     setDraggedFile(fileId);
-    
+    e.dataTransfer.setData('application/grutto-file-id', fileId);
+
     // Create custom drag image with 2:1 aspect ratio (narrower)
     const dragPreview = document.createElement('div');
     dragPreview.className = 'flex items-center gap-2 p-3 bg-white rounded-xl border-2 border-primary shadow-lg';
-    dragPreview.style.width = '120px'; // Narrower width
-    dragPreview.style.height = '60px'; // 2:1 ratio
-    
+    dragPreview.style.width = '120px';
+    dragPreview.style.height = '60px';
+
     const iconContainer = document.createElement('div');
-    iconContainer.innerHTML = getFileIcon(file.file_type).type === Image 
-      ? '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
-      : '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
-    
+    iconContainer.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
     dragPreview.appendChild(iconContainer);
-    
+
     document.body.appendChild(dragPreview);
     dragPreview.style.position = 'absolute';
     dragPreview.style.top = '-1000px';
-    
+
     e.dataTransfer.setDragImage(dragPreview, 60, 30);
-    
+
     setTimeout(() => document.body.removeChild(dragPreview), 0);
   };
 
@@ -536,7 +542,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
                             setShareDialogFile(file);
                           }}
                         >
-                          <ArrowUpRight className="w-4 h-4" />
+                          <img src={shareIcon} alt="Delen" className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -574,7 +580,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
                               }}
                               className="rounded-xl py-3"
                             >
-                              <ArrowUpRight className="w-4 h-4 mr-3" />
+                              <img src={shareIcon} alt="Delen" className="w-4 h-4 mr-3" />
                               Delen
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => toggleFavorite(file, e)} className="rounded-xl py-3">
