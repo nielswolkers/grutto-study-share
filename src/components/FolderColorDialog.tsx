@@ -7,10 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
-import { FolderPlus } from "lucide-react";
 import { toast } from "sonner";
 import folderOrange from "@/assets/folder-orange.png";
 import folderPink from "@/assets/folder-pink.png";
@@ -20,12 +18,12 @@ import folderGreen from "@/assets/folder-green.png";
 import folderBlueDark from "@/assets/folder-blue-dark.png";
 import folderYellow from "@/assets/folder-yellow.png";
 
-interface FolderDialogProps {
+interface FolderColorDialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  userId: string;
-  parentFolderId?: string;
+  folderId: string;
+  currentColor: string;
 }
 
 const FOLDER_COLORS = [
@@ -38,40 +36,34 @@ const FOLDER_COLORS = [
   { name: "Geel", color: "#E8C547", icon: folderYellow },
 ];
 
-export const FolderDialog = ({ open, onClose, onSuccess, userId, parentFolderId }: FolderDialogProps) => {
-  const [folderName, setFolderName] = useState("");
-  const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0].color);
-  const [isCreating, setIsCreating] = useState(false);
+export const FolderColorDialog = ({ 
+  open, 
+  onClose, 
+  onSuccess, 
+  folderId, 
+  currentColor 
+}: FolderColorDialogProps) => {
+  const [selectedColor, setSelectedColor] = useState(currentColor);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleCreate = async () => {
-    if (!folderName.trim()) {
-      toast.error("Voer een mapnaam in");
-      return;
-    }
-
-    setIsCreating(true);
+  const handleChangeColor = async () => {
+    setIsUpdating(true);
     try {
       const { error } = await supabase
         .from('folders')
-        .insert({
-          name: folderName.trim(),
-          color: selectedColor,
-          owner_id: userId,
-          parent_folder_id: parentFolderId || null,
-        });
+        .update({ color: selectedColor })
+        .eq('id', folderId);
 
       if (error) throw error;
 
-      toast.success("Map aangemaakt");
-      setFolderName("");
-      setSelectedColor(FOLDER_COLORS[0].color);
+      toast.success("Mapkleur gewijzigd");
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Kon map niet aanmaken");
+      toast.error("Kon mapkleur niet wijzigen");
       console.error(error);
     } finally {
-      setIsCreating(false);
+      setIsUpdating(false);
     }
   };
 
@@ -79,26 +71,13 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId, parentFolderId 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nieuwe Map Aanmaken</DialogTitle>
+          <DialogTitle>Mapkleur Wijzigen</DialogTitle>
           <DialogDescription>
-            Organiseer je bestanden met aangepaste mappen
+            Kies een nieuwe kleur voor deze map
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Folder Name */}
-          <div className="space-y-2">
-            <Label htmlFor="folder-name">Mapnaam</Label>
-            <Input
-              id="folder-name"
-              placeholder="Voer mapnaam in"
-              value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
-              maxLength={50}
-            />
-          </div>
-
-          {/* Color Selection */}
           <div className="space-y-2">
             <Label>Mapkleur</Label>
             <div className="grid grid-cols-4 gap-3">
@@ -123,18 +102,16 @@ export const FolderDialog = ({ open, onClose, onSuccess, userId, parentFolderId 
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={onClose} className="flex-1">
               Annuleren
             </Button>
             <Button
-              onClick={handleCreate}
-              disabled={!folderName.trim() || isCreating}
+              onClick={handleChangeColor}
+              disabled={isUpdating}
               className="flex-1"
             >
-              <FolderPlus className="w-4 h-4 mr-2" />
-              {isCreating ? "Aanmaken..." : "Map Aanmaken"}
+              {isUpdating ? "Wijzigen..." : "Wijzigen"}
             </Button>
           </div>
         </div>

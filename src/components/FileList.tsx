@@ -498,7 +498,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
               onDoubleClick={(e) => handleFileDoubleClick(file, e)}
               onMouseEnter={() => setHoveredFileId(file.id)}
               onMouseLeave={() => setHoveredFileId(null)}
-              className="group flex items-center gap-4 p-4 bg-white rounded-2xl border hover:border-primary/20 transition-all cursor-pointer hover:shadow-sm"
+              className="group flex items-center gap-4 p-5 bg-white rounded-2xl border hover:border-primary/20 transition-all cursor-pointer hover:shadow-sm"
             >
               {getFileIcon(file.file_type)}
                     

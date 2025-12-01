@@ -154,9 +154,9 @@ const Files = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-start justify-center py-10">
+    <div className="min-h-screen bg-background">
       <main
-        className="relative w-full max-w-6xl bg-card rounded-[32px] shadow-lg border border-border/60 px-10 py-8"
+        className="relative w-full px-10 py-8"
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleRootDrop}
       >
@@ -166,7 +166,7 @@ const Files = () => {
           <div className="flex items-center gap-8">
             <button
               onClick={() => setActiveView("recent")}
-              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.15rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "recent" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -176,7 +176,7 @@ const Files = () => {
             </button>
             <button
               onClick={() => setActiveView("shared")}
-              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.15rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "shared" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -186,7 +186,7 @@ const Files = () => {
             </button>
             <button
               onClick={() => setActiveView("favorites")}
-              className={`text-[1.05rem] font-medium pb-2 border-b-2 transition-colors ${
+              className={`text-[1.15rem] font-medium pb-2 border-b-2 transition-colors ${
                 activeView === "favorites" 
                   ? "border-foreground text-foreground" 
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -258,14 +258,17 @@ const Files = () => {
         {/* Folders Section */}
         {activeView === "recent" && (
           <div className="mb-8">
-            <h2 className="text-sm font-semibold mb-4 text-muted-foreground">Mappen</h2>
+            <h2 className="text-[0.8rem] font-semibold mb-4 text-muted-foreground">Mappen</h2>
             <div className="flex gap-6 overflow-x-auto pb-2">
               {folders.map((folder) => (
                 <FolderCard
                   key={folder.id}
                   folder={folder}
                   fileCount={folderFileCounts[folder.id] || 0}
-                  onUpdate={() => loadFolders(user.id)}
+                  onUpdate={() => {
+                    loadFolders(user.id);
+                    setRefreshTrigger(prev => prev + 1);
+                  }}
                 />
               ))}
             </div>
@@ -274,7 +277,7 @@ const Files = () => {
 
         {/* Files Section with Sort */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-muted-foreground">Bestanden</h2>
+          <h2 className="text-[0.8rem] font-semibold text-muted-foreground">Bestanden</h2>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Sorteren:</span>
             <select
