@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Folder, MoreVertical, Edit2, Trash2, Copy, Download } from "lucide-react";
+import { Folder, MoreVertical, Edit2, Trash2, Copy, Download, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { FolderRenameDialog } from "./FolderRenameDialog";
+import { FolderColorDialog } from "./FolderColorDialog";
 import folderOrange from "@/assets/folder-orange.png";
 import folderPink from "@/assets/folder-pink.png";
 import folderRed from "@/assets/folder-red.png";
@@ -42,6 +44,8 @@ const FOLDER_ICON_MAP: Record<string, string> = {
 
 export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => {
   const navigate = useNavigate();
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showColorDialog, setShowColorDialog] = useState(false);
 
   const getFolderIcon = (color: string) => {
     return FOLDER_ICON_MAP[color] || folderGreen;
@@ -132,14 +136,14 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
           <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
-              toast.info('Naam wijzigen komt binnenkort');
+              setShowRenameDialog(true);
             }} className="rounded-xl py-3">
               <Edit2 className="w-4 h-4 mr-2" />
               Naam wijzigen
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
-              toast.info('Kleur wijzigen komt binnenkort');
+              setShowColorDialog(true);
             }} className="rounded-xl py-3">
               <Folder className="w-4 h-4 mr-2" />
               Kleur wijzigen
@@ -148,7 +152,7 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
               e.stopPropagation();
               toast.info('Map delen komt binnenkort');
             }} className="rounded-xl py-3">
-              <Folder className="w-4 h-4 mr-2" />
+              <Share2 className="w-4 h-4 mr-2" />
               Deel map
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => {
@@ -192,6 +196,22 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
           </p>
         </div>
       </div>
+
+      <FolderRenameDialog
+        open={showRenameDialog}
+        onClose={() => setShowRenameDialog(false)}
+        onSuccess={onUpdate}
+        folderId={folder.id}
+        currentName={folder.name}
+      />
+
+      <FolderColorDialog
+        open={showColorDialog}
+        onClose={() => setShowColorDialog(false)}
+        onSuccess={onUpdate}
+        folderId={folder.id}
+        currentColor={folder.color}
+      />
     </div>
   );
 };

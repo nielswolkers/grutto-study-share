@@ -141,15 +141,10 @@ const FolderView = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Logo */}
-      <div className="max-w-7xl mx-auto px-6 pt-6">
-        <img src={gruttoLogo} alt="Grutto" className="h-10" />
-      </div>
-
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="w-full px-10 py-8">
         {/* Top Bar */}
-        <div className="mb-6 flex items-center justify-between gap-4 h-16">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -166,63 +161,33 @@ const FolderView = () => {
           {/* Actions Group */}
           <div className="flex items-center gap-3">
             {/* Search */}
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Zoeken..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-full bg-secondary border-0"
+                className="pl-10 h-11 rounded-full bg-secondary border-0 focus-visible:ring-1"
               />
             </div>
 
             {/* Folder Creation */}
             <Button
-              variant="outline"
-              size="icon"
               onClick={() => setShowFolderDialog(true)}
-              className="rounded-full"
+              className="rounded-full gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary-hover px-5"
             >
-              <FolderPlus className="w-5 h-5" />
+              <FolderPlus className="w-4 h-4" />
+              Voeg map toe
             </Button>
 
             {/* Upload */}
             <Button
-              variant="outline"
-              size="icon"
               onClick={() => setShowUpload(!showUpload)}
-              className="rounded-full"
+              className="rounded-full gap-2 h-11 bg-primary text-primary-foreground hover:bg-primary-hover px-5"
             >
-              <Upload className="w-5 h-5" />
-            </Button>
-
-            {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-full"
-              onClick={() => setShowNotifications(true)}
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <Badge 
-                  variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs rounded-full"
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-            </Button>
-
-            {/* Logout */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-              className="rounded-full"
-            >
-              <LogOut className="w-5 h-5" />
+              <Upload className="w-4 h-4" />
+              Importeer
             </Button>
           </div>
         </div>
@@ -273,6 +238,7 @@ const FolderView = () => {
         onClose={() => setShowFolderDialog(false)}
         onSuccess={() => setRefreshTrigger(prev => prev + 1)}
         userId={user.id}
+        parentFolderId={folderId}
       />
 
       <NotificationsPanel
