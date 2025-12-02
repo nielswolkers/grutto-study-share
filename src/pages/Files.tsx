@@ -25,7 +25,9 @@ const Files = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeView, setActiveView] = useState<"recent" | "shared" | "favorites">("recent");
-  const [sortBy, setSortBy] = useState<"name" | "date">("date");
+  const [sortByRecent, setSortByRecent] = useState<"name" | "date">("date");
+  const [sortByShared, setSortByShared] = useState<"name" | "date">("date");
+  const [sortByFavorites, setSortByFavorites] = useState<"name" | "date">("date");
   const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
   const [folders, setFolders] = useState<any[]>([]);
   const [folderFileCounts, setFolderFileCounts] = useState<Record<string, number>>({});
@@ -281,8 +283,13 @@ const Files = () => {
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Sorteren:</span>
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "name" | "date")}
+              value={activeView === "recent" ? sortByRecent : activeView === "shared" ? sortByShared : sortByFavorites}
+              onChange={(e) => {
+                const value = e.target.value as "name" | "date";
+                if (activeView === "recent") setSortByRecent(value);
+                else if (activeView === "shared") setSortByShared(value);
+                else setSortByFavorites(value);
+              }}
               className="h-9 px-3 rounded-full border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               <option value="name">Naam (A-Z)</option>
@@ -296,7 +303,7 @@ const Files = () => {
           viewType={activeView}
           searchQuery={searchQuery}
           refreshTrigger={refreshTrigger}
-          sortBy={sortBy}
+          sortBy={activeView === "recent" ? sortByRecent : activeView === "shared" ? sortByShared : sortByFavorites}
           fileTypeFilter={fileTypeFilter}
           onFavoritesChange={() => {}}
         />

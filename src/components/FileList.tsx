@@ -209,11 +209,10 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
           profiles: profileMap.get(item.files.owner_id),
         }));
 
-        const allFiles = [...ownFiles.data, ...sharedFiles]
+        const allFilesCombined = [...(ownFiles.data || []), ...sharedFiles]
           .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
-        
-        setAllFiles(allFiles);
-        setFiles(filterAndSortFiles(allFiles));
+        setAllFiles(allFilesCombined);
+        setFiles(filterAndSortFiles(allFilesCombined));
         setLoading(false);
         return;
       }
@@ -254,11 +253,10 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
 
     // Sort
     if (sortBy === "name") {
-      filtered.sort((a, b) => a.filename.localeCompare(b.filename));
+      filtered = [...filtered].sort((a, b) => a.filename.localeCompare(b.filename));
     } else {
-      filtered.sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
+      filtered = [...filtered].sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
     }
-
     return filtered;
   };
 

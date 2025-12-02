@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Folder, MoreVertical, Edit2, Trash2, Copy, Download, Share2 } from "lucide-react";
+import { Folder, MoreVertical, Edit2, Trash2, Copy, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import {
 import { Button } from "./ui/button";
 import { FolderRenameDialog } from "./FolderRenameDialog";
 import { FolderColorDialog } from "./FolderColorDialog";
+import { FolderShareDialog } from "./FolderShareDialog";
 import folderOrange from "@/assets/folder-orange.png";
 import folderPink from "@/assets/folder-pink.png";
 import folderRed from "@/assets/folder-red.png";
@@ -19,6 +20,7 @@ import folderBlue from "@/assets/folder-blue.png";
 import folderGreen from "@/assets/folder-green.png";
 import folderBlueDark from "@/assets/folder-blue-dark.png";
 import folderYellow from "@/assets/folder-yellow.png";
+import shareIcon from "@/assets/share-icon.png";
 
 interface FolderCardProps {
   folder: {
@@ -26,6 +28,7 @@ interface FolderCardProps {
     name: string;
     color: string;
     owner_id: string;
+    parent_folder_id?: string | null;
   };
   fileCount: number;
   onUpdate: () => void;
@@ -46,6 +49,7 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
   const navigate = useNavigate();
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showColorDialog, setShowColorDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   const getFolderIcon = (color: string) => {
     return FOLDER_ICON_MAP[color] || folderGreen;
@@ -109,6 +113,60 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
     e.dataTransfer.setData('application/grutto-folder-id', folder.id);
   };
 
+  const handleCopyFolder = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const newName = `${folder.name} (kopie)`;
+      const { error } = await supabase
+        .from('folders')
+        .insert({
+          name: newName,
+          color: folder.color,
+          owner_id: folder.owner_id,
+          parent_folder_id: folder.parent_folder_id,
+        });
+
+      if (error) throw error;
+      toast.success('Map gekopieerd');
+      onUpdate();
+    } catch (error: any) {
+      toast.error('Kon map niet kopiëren');
+      console.error(error);
+    }
+  };
+
+  const handleDownloadZip = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const JSZip = (await import('jszip')).default;
+      const { saveAs } = await import('file-saver');
+
+      const zip = new JSZip();
+
+      const { data: files, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('folder_id', folder.id);
+
+      if (error) throw error;
+
+      for (const file of files || []) {
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('user-files')
+          .download(file.storage_url);
+
+        if (downloadError) throw downloadError;
+        zip.file(file.filename, fileData);
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `${folder.name}.zip`);
+      toast.success('Map als ZIP gedownload');
+    } catch (error: any) {
+      toast.error('Kon ZIP-download niet voltooien');
+      console.error(error);
+    }
+  };
   return (
     <div
       draggable
@@ -150,22 +208,16 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
-              toast.info('Map delen komt binnenkort');
+              setShowShareDialog(true);
             }} className="rounded-xl py-3">
-              <Share2 className="w-4 h-4 mr-2" />
+              <img src={shareIcon} alt="Deel map" className="w-4 h-4 mr-2" />
               Deel map
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              toast.info('Kopiëren komt binnenkort');
-            }} className="rounded-xl py-3">
+            <DropdownMenuItem onClick={handleCopyFolder} className="rounded-xl py-3">
               <Copy className="w-4 h-4 mr-2" />
               Kopiëren
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              toast.info('Downloaden komt binnenkort');
-            }} className="rounded-xl py-3">
+            <DropdownMenuItem onClick={handleDownloadZip} className="rounded-xl py-3">
               <Download className="w-4 h-4 mr-2" />
               Download als ZIP
             </DropdownMenuItem>
@@ -211,6 +263,14 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
         onSuccess={onUpdate}
         folderId={folder.id}
         currentColor={folder.color}
+      />
+
+      <FolderShareDialog
+        open={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        onSuccess={onUpdate}
+        folderId={folder.id}
+        folderName={folder.name}
       />
     </div>
   );
