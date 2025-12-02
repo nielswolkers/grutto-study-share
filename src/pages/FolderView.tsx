@@ -4,15 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Upload, Search, Bell, LogOut, FolderPlus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Upload, Search, FolderPlus } from "lucide-react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/FileUpload";
-import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { FolderDialog } from "@/components/FolderDialog";
-import { authHelpers } from "@/lib/supabase";
+import { FolderCard } from "@/components/FolderCard";
 import { formatRelativeDate } from "@/lib/dateUtils";
-import gruttoLogo from "@/assets/grutto-logo.png";
 
 interface FileData {
   id: string;
@@ -32,12 +29,11 @@ const FolderView = () => {
   const [user, setUser] = useState<User | null>(null);
   const [folder, setFolder] = useState<any>(null);
   const [files, setFiles] = useState<FileData[]>([]);
+  const [subfolders, setSubfolders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +44,7 @@ const FolderView = () => {
         setUser(session.user);
         loadFolder();
         loadFiles();
-        loadUnreadCount(session.user.id);
+        loadSubfolders();
       }
     });
   }, [navigate, folderId, refreshTrigger]);
@@ -107,30 +103,6 @@ const FolderView = () => {
     }
   }, [searchQuery]);
 
-  const loadUnreadCount = async (userId: string) => {
-    try {
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('recipient_id', userId)
-        .eq('read_status', false);
-      
-      setUnreadCount(count || 0);
-    } catch (error) {
-      console.error("Failed to load notification count:", error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    const { error } = await authHelpers.signOut();
-    if (error) {
-      toast.error("Fout bij uitloggen");
-    } else {
-      toast.success("Succesvol uitgelogd");
-      navigate("/auth");
-    }
-  };
-
   const handleUploadComplete = () => {
     setShowUpload(false);
     setRefreshTrigger(prev => prev + 1);
@@ -139,6 +111,38 @@ const FolderView = () => {
 
   if (!user || !folder) return null;
 
+  const loadSubfolders = async () => {
+    if (!folderId) return;
+    try {
+      const { data, error } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('owner_id', user.id)
+        .eq('parent_folder_id', folderId)
+        .order('name');
+
+      if (error) throw error;
+
+      // Load file counts for each subfolder
+      const counts: Record<string, number> = {};
+      for (const subfolder of data || []) {
+        const { count } = await supabase
+          .from('files')
+          .select('*', { count: 'exact', head: true })
+          .eq('folder_id', subfolder.id);
+        counts[subfolder.id] = count || 0;
+      }
+
+      const foldersWithCounts = (data || []).map((subfolder) => ({
+        ...subfolder,
+        fileCount: counts[subfolder.id] || 0,
+      }));
+
+      setSubfolders(foldersWithCounts);
+    } catch (error) {
+      console.error('Kon submappen niet laden', error);
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Main Content */}
@@ -194,12 +198,32 @@ const FolderView = () => {
 
         {/* Upload Section */}
         {showUpload && (
-          <div className="mb-6 p-6 bg-card rounded-2xl shadow-sm border">
+          <div className="mb-6 p-6 bg-card rounded-2xl shadow-sm border border-border/60">
             <FileUpload 
               userId={user.id} 
               onUploadComplete={handleUploadComplete} 
               folderId={folderId} 
             />
+          </div>
+        )}
+
+        {/* Subfolders Section */}
+        {subfolders.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-[0.8rem] font-semibold mb-4 text-muted-foreground">Mappen</h2>
+            <div className="flex gap-6 overflow-x-auto pb-2">
+              {subfolders.map((subfolder) => (
+                <FolderCard
+                  key={subfolder.id}
+                  folder={subfolder}
+                  fileCount={subfolder.fileCount || 0}
+                  onUpdate={() => {
+                    loadSubfolders();
+                    setRefreshTrigger(prev => prev + 1);
+                  }}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -236,15 +260,12 @@ const FolderView = () => {
       <FolderDialog
         open={showFolderDialog}
         onClose={() => setShowFolderDialog(false)}
-        onSuccess={() => setRefreshTrigger(prev => prev + 1)}
+        onSuccess={() => {
+          setRefreshTrigger(prev => prev + 1);
+          loadSubfolders();
+        }}
         userId={user.id}
         parentFolderId={folderId}
-      />
-
-      <NotificationsPanel
-        open={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        userId={user.id}
       />
     </div>
   );
