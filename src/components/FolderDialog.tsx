@@ -19,6 +19,7 @@ import folderBlue from "@/assets/folder-blue.png";
 import folderGreen from "@/assets/folder-green.png";
 import folderBlueDark from "@/assets/folder-blue-dark.png";
 import folderYellow from "@/assets/folder-yellow.png";
+import folderGold from "@/assets/folder-gold.png";
 
 interface FolderDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ const FOLDER_COLORS = [
   { name: "Groen", color: "#6BC497", icon: folderGreen },
   { name: "Donkerblauw", color: "#4B8FBA", icon: folderBlueDark },
   { name: "Geel", color: "#E8C547", icon: folderYellow },
+  { name: "Goud", color: "#D4A017", icon: folderGold },
 ];
 
 export const FolderDialog = ({ open, onClose, onSuccess, userId, parentFolderId }: FolderDialogProps) => {

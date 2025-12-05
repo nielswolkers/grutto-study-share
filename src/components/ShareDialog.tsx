@@ -10,8 +10,9 @@ import {
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Search, X, Share2 } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
+import shareIcon from "@/assets/share-icon.png";
 
 interface ShareDialogProps {
   file: {
@@ -277,7 +278,7 @@ export const ShareDialog = ({ file, open, onClose }: ShareDialogProps) => {
               disabled={selectedUsers.length === 0 || isSharing}
               className="flex-1"
             >
-              <Share2 className="w-4 h-4 mr-2" />
+              <img src={shareIcon} alt="Delen" className="w-4 h-4 mr-2" />
               {isSharing ? "Delen..." : `Delen met ${selectedUsers.length}`}
             </Button>
           </div>
