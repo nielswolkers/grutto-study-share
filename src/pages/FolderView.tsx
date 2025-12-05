@@ -36,19 +36,6 @@ const FolderView = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-        loadFolder();
-        loadFiles();
-        loadSubfolders();
-      }
-    });
-  }, [navigate, folderId, refreshTrigger]);
-
   const loadFolder = async () => {
     if (!folderId) return;
     
@@ -97,27 +84,13 @@ const FolderView = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      loadFiles();
-    }
-  }, [searchQuery]);
-
-  const handleUploadComplete = () => {
-    setShowUpload(false);
-    setRefreshTrigger(prev => prev + 1);
-    toast.success("Bestand geüpload!");
-  };
-
-  if (!user || !folder) return null;
-
-  const loadSubfolders = async () => {
-    if (!folderId) return;
+  const loadSubfolders = async (userId: string) => {
+    if (!folderId || !userId) return;
     try {
       const { data, error } = await supabase
         .from('folders')
         .select('*')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .eq('parent_folder_id', folderId)
         .order('name');
 
@@ -143,6 +116,34 @@ const FolderView = () => {
       console.error('Kon submappen niet laden', error);
     }
   };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUser(session.user);
+        loadFolder();
+        loadFiles();
+        loadSubfolders(session.user.id);
+      }
+    });
+  }, [navigate, folderId, refreshTrigger]);
+
+  useEffect(() => {
+    if (user && folderId) {
+      loadFiles();
+    }
+  }, [searchQuery]);
+
+  const handleUploadComplete = () => {
+    setShowUpload(false);
+    setRefreshTrigger(prev => prev + 1);
+    toast.success("Bestand geüpload!");
+  };
+
+  if (!user || !folder) return null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Main Content */}
@@ -218,7 +219,7 @@ const FolderView = () => {
                   folder={subfolder}
                   fileCount={subfolder.fileCount || 0}
                   onUpdate={() => {
-                    loadSubfolders();
+                    loadSubfolders(user.id);
                     setRefreshTrigger(prev => prev + 1);
                   }}
                 />
@@ -262,7 +263,7 @@ const FolderView = () => {
         onClose={() => setShowFolderDialog(false)}
         onSuccess={() => {
           setRefreshTrigger(prev => prev + 1);
-          loadSubfolders();
+          loadSubfolders(user.id);
         }}
         userId={user.id}
         parentFolderId={folderId}
