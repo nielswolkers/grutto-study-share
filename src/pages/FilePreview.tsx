@@ -51,7 +51,7 @@ export const FilePreview = () => {
     } catch (error: any) {
       toast.error("Kon bestand niet laden");
       console.error(error);
-      navigate("/files");
+      navigate(-1);
     } finally {
       setLoading(false);
     }
@@ -89,6 +89,10 @@ export const FilePreview = () => {
     }
   };
 
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   const isImage = file?.file_type.includes('image');
   const isPdf = file?.file_type.includes('pdf');
   const isWord = file?.file_type.includes('word');
@@ -104,7 +108,7 @@ export const FilePreview = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/files")}
+              onClick={handleGoBack}
               className="rounded-full"
             >
               <ArrowLeft className="w-5 h-5" />

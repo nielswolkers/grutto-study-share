@@ -11,7 +11,6 @@ import {
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { FolderRenameDialog } from "./FolderRenameDialog";
-import { FolderColorDialog } from "./FolderColorDialog";
 import { FolderShareDialog } from "./FolderShareDialog";
 import folderOrange from "@/assets/folder-orange.png";
 import folderPink from "@/assets/folder-pink.png";
@@ -20,6 +19,7 @@ import folderBlue from "@/assets/folder-blue.png";
 import folderGreen from "@/assets/folder-green.png";
 import folderBlueDark from "@/assets/folder-blue-dark.png";
 import folderYellow from "@/assets/folder-yellow.png";
+import folderGold from "@/assets/folder-gold.png";
 import shareIcon from "@/assets/share-icon.png";
 
 interface FolderCardProps {
@@ -43,12 +43,12 @@ const FOLDER_ICON_MAP: Record<string, string> = {
   "#6BC497": folderGreen,
   "#4B8FBA": folderBlueDark,
   "#E8C547": folderYellow,
+  "#D4A017": folderGold,
 };
 
 export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => {
   const navigate = useNavigate();
   const [showRenameDialog, setShowRenameDialog] = useState(false);
-  const [showColorDialog, setShowColorDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
 
   const getFolderIcon = (color: string) => {
@@ -117,17 +117,68 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
     e.stopPropagation();
     try {
       const newName = `${folder.name} (kopie)`;
-      const { error } = await supabase
+      
+      // Create the new folder
+      const { data: newFolder, error: folderError } = await supabase
         .from('folders')
         .insert({
           name: newName,
           color: folder.color,
           owner_id: folder.owner_id,
           parent_folder_id: folder.parent_folder_id,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
-      toast.success('Map gekopieerd');
+      if (folderError) throw folderError;
+
+      // Get all files in the original folder
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('*')
+        .eq('folder_id', folder.id);
+
+      if (filesError) throw filesError;
+
+      // Copy each file
+      for (const file of files || []) {
+        // Download the original file
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('user-files')
+          .download(file.storage_url);
+
+        if (downloadError) {
+          console.error('Failed to download file:', downloadError);
+          continue;
+        }
+
+        // Upload with a new path
+        const newFilePath = `${folder.owner_id}/${Date.now()}_${file.filename}`;
+        const { error: uploadError } = await supabase.storage
+          .from('user-files')
+          .upload(newFilePath, fileData, {
+            contentType: file.file_type,
+          });
+
+        if (uploadError) {
+          console.error('Failed to upload file:', uploadError);
+          continue;
+        }
+
+        // Create file record in new folder
+        await supabase
+          .from('files')
+          .insert({
+            filename: file.filename,
+            file_type: file.file_type,
+            file_size: file.file_size,
+            storage_url: newFilePath,
+            owner_id: folder.owner_id,
+            folder_id: newFolder.id,
+          });
+      }
+
+      toast.success('Map en inhoud gekopieerd');
       onUpdate();
     } catch (error: any) {
       toast.error('Kon map niet kopiëren');
@@ -167,6 +218,7 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
       console.error(error);
     }
   };
+
   return (
     <div
       draggable
@@ -198,13 +250,6 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
             }} className="rounded-xl py-3">
               <Edit2 className="w-4 h-4 mr-2" />
               Naam wijzigen
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              setShowColorDialog(true);
-            }} className="rounded-xl py-3">
-              <Folder className="w-4 h-4 mr-2" />
-              Kleur wijzigen
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();
@@ -255,13 +300,6 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
         onSuccess={onUpdate}
         folderId={folder.id}
         currentName={folder.name}
-      />
-
-      <FolderColorDialog
-        open={showColorDialog}
-        onClose={() => setShowColorDialog(false)}
-        onSuccess={onUpdate}
-        folderId={folder.id}
         currentColor={folder.color}
       />
 

@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Search, X } from "lucide-react";
 import { toast } from "sonner";
+import shareIcon from "@/assets/share-icon.png";
 
 interface FolderShareDialogProps {
   folderId: string;
@@ -210,6 +211,7 @@ export const FolderShareDialog = ({ folderId, folderName, open, onClose, onSucce
               onClick={handleShare}
               disabled={isSharing || selectedUsers.length === 0}
             >
+              <img src={shareIcon} alt="Delen" className="w-4 h-4 mr-2" />
               {isSharing ? 'Delen...' : 'Delen'}
             </Button>
           </div>
