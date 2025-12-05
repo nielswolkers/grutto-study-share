@@ -70,7 +70,7 @@ const getFileTypeLabel = (fileType: string) => {
 export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy, fileTypeFilter, onFavoritesChange }: FileListProps) => {
   const navigate = useNavigate();
   const [files, setFiles] = useState<FileData[]>([]);
-  const [allFiles, setAllFiles] = useState<FileData[]>([]);
+  const [rawFiles, setRawFiles] = useState<FileData[]>([]);
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareDialogFile, setShareDialogFile] = useState<FileData | null>(null);
@@ -79,16 +79,22 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
   const [editingFileName, setEditingFileName] = useState("");
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
 
+  // Load files when view changes - clear previous data first
   useEffect(() => {
+    setRawFiles([]);
+    setFiles([]);
     loadFiles();
     if (viewType === "recent") {
       loadFolders();
     }
   }, [userId, viewType, refreshTrigger]);
 
+  // Apply filters/sorting instantly when parameters change
   useEffect(() => {
-    setFiles(filterAndSortFiles(allFiles));
-  }, [searchQuery, fileTypeFilter, sortBy, allFiles]);
+    if (rawFiles.length > 0) {
+      setFiles(filterAndSortFiles(rawFiles));
+    }
+  }, [searchQuery, fileTypeFilter, sortBy, rawFiles]);
 
   const loadFolders = async () => {
     try {
@@ -164,6 +170,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
           profiles: profileMap.get(item.files.owner_id),
         }));
         
+        setRawFiles(transformedFiles);
         setFiles(filterAndSortFiles(transformedFiles));
         setLoading(false);
         return;
@@ -211,7 +218,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
 
         const allFilesCombined = [...(ownFiles.data || []), ...sharedFiles]
           .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
-        setAllFiles(allFilesCombined);
+        setRawFiles(allFilesCombined);
         setFiles(filterAndSortFiles(allFilesCombined));
         setLoading(false);
         return;
@@ -220,6 +227,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
       const { data, error } = await query;
       if (error) throw error;
 
+      setRawFiles(data || []);
       setFiles(filterAndSortFiles(data || []));
     } catch (error: any) {
       toast.error("Kon bestanden niet laden");
