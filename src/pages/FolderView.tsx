@@ -231,18 +231,27 @@ const FolderView = () => {
     }
   };
 
-  const handleDelete = async (fileId: string, e: React.MouseEvent) => {
+  const handleDelete = async (file: FileData, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       const { error } = await supabase
         .from('files')
-        .delete()
-        .eq('id', fileId);
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+        .eq('id', file.id);
 
       if (error) throw error;
 
-      setFiles(prev => prev.filter(f => f.id !== fileId));
-      toast.success("Bestand verwijderd");
+      // Create notification for file deletion
+      await supabase.from('notifications').insert({
+        type: 'file_deleted',
+        message: `Bestand "${file.filename}" is naar de prullenbak verplaatst`,
+        recipient_id: user?.id,
+        sender_id: user?.id,
+        file_id: file.id,
+      });
+
+      setFiles(prev => prev.filter(f => f.id !== file.id));
+      toast.success("Bestand naar prullenbak verplaatst");
     } catch (error: any) {
       toast.error("Kon bestand niet verwijderen");
       console.error(error);
@@ -452,7 +461,7 @@ const FolderView = () => {
                         {file.is_favorite ? 'Uit favorieten' : 'Toevoegen aan favorieten'}
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={(e) => handleDelete(file.id, e)} 
+                        onClick={(e) => handleDelete(file, e)} 
                         className="text-destructive focus:text-destructive rounded-lg"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
