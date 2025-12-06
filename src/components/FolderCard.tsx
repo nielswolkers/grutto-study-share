@@ -58,17 +58,25 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    if (!confirm(`Map "${folder.name}" verwijderen?`)) return;
+    if (!confirm(`Map "${folder.name}" naar prullenbak verplaatsen?`)) return;
 
     try {
       const { error } = await supabase
         .from('folders')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: folder.owner_id })
         .eq('id', folder.id);
 
       if (error) throw error;
 
-      toast.success("Map verwijderd");
+      // Create notification for folder deletion
+      await supabase.from('notifications').insert({
+        type: 'folder_deleted',
+        message: `Map "${folder.name}" is naar de prullenbak verplaatst`,
+        recipient_id: folder.owner_id,
+        sender_id: folder.owner_id,
+      });
+
+      toast.success("Map naar prullenbak verplaatst");
       onUpdate();
     } catch (error: any) {
       toast.error("Kon map niet verwijderen");
@@ -249,7 +257,7 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
               setShowRenameDialog(true);
             }} className="rounded-xl py-3">
               <Edit2 className="w-4 h-4 mr-2" />
-              Naam wijzigen
+              Wijzigen
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => {
               e.stopPropagation();

@@ -48,6 +48,8 @@ export type Database = {
       }
       files: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           file_size: number
           file_type: string
           filename: string
@@ -61,6 +63,8 @@ export type Database = {
           upload_date: string | null
         }
         Insert: {
+          deleted_at?: string | null
+          deleted_by?: string | null
           file_size: number
           file_type: string
           filename: string
@@ -74,6 +78,8 @@ export type Database = {
           upload_date?: string | null
         }
         Update: {
+          deleted_at?: string | null
+          deleted_by?: string | null
           file_size?: number
           file_type?: string
           filename?: string
@@ -100,6 +106,8 @@ export type Database = {
         Row: {
           color: string
           created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           name: string
           owner_id: string
@@ -109,6 +117,8 @@ export type Database = {
         Insert: {
           color?: string
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name: string
           owner_id: string
@@ -118,6 +128,8 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name?: string
           owner_id?: string

@@ -92,7 +92,7 @@ export const FolderRenameDialog = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Map Bewerken</DialogTitle>
+          <DialogTitle>Map Wijzigen</DialogTitle>
           <DialogDescription>
             Wijzig de naam en kleur van deze map
           </DialogDescription>

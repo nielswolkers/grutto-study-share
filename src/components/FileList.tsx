@@ -350,17 +350,26 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
     }
   };
 
-  const handleDelete = async (fileId: string) => {
+  const handleDelete = async (fileId: string, filename: string) => {
     try {
       const { error } = await supabase
         .from('files')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
         .eq('id', fileId);
 
       if (error) throw error;
 
+      // Create notification for file deletion
+      await supabase.from('notifications').insert({
+        type: 'file_deleted',
+        message: `Bestand "${filename}" is naar de prullenbak verplaatst`,
+        recipient_id: userId,
+        sender_id: userId,
+        file_id: fileId,
+      });
+
       setFiles(prev => prev.filter(f => f.id !== fileId));
-      toast.success("Bestand verwijderd");
+      toast.success("Bestand naar prullenbak verplaatst");
       onFavoritesChange();
     } catch (error: any) {
       toast.error("Kon bestand niet verwijderen");
@@ -598,7 +607,7 @@ export const FileList = ({ userId, viewType, searchQuery, refreshTrigger, sortBy
                               Bewerk naam
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleDelete(file.id)}
+                              onClick={() => handleDelete(file.id, file.filename)}
                               className="text-destructive focus:text-destructive rounded-xl py-3"
                             >
                               <Trash2 className="w-4 h-4 mr-3" />
