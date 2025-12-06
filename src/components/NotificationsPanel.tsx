@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "./ui/sheet";
 import { Button } from "./ui/button";
-import { FileText, X, FileIcon } from "lucide-react";
+import { FileText, X, FileIcon, Undo2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeDate } from "@/lib/dateUtils";
 
@@ -50,6 +50,17 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
   const loadNotifications = async () => {
     setLoading(true);
     try {
+      // Calculate 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Delete notifications older than 30 days
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', userId)
+        .lt('created_at', thirtyDaysAgo.toISOString());
+
       const { data: notifData, error } = await supabase
         .from('notifications')
         .select('*')
@@ -65,16 +76,23 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
         .select('id, username, display_name')
         .in('id', senderIds);
 
-      // Get file info
+      // Get file info (include deleted files too)
       const fileIds = [...new Set(notifData?.filter(n => n.file_id).map(n => n.file_id!) || [])];
-      const { data: files } = await supabase
-        .from('files')
-        .select('id, filename')
-        .in('id', fileIds);
+      
+      // Use RPC or direct query to get deleted files as well
+      let fileMap = new Map();
+      if (fileIds.length > 0) {
+        // Query without RLS filter for deleted files
+        const { data: files } = await supabase
+          .from('files')
+          .select('id, filename, deleted_at')
+          .in('id', fileIds);
+        
+        fileMap = new Map(files?.map(f => [f.id, f]) || []);
+      }
 
       // Map profiles and files to notifications
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      const fileMap = new Map(files?.map(f => [f.id, f]) || []);
 
       const enrichedNotifications = notifData?.map(n => ({
         ...n,
@@ -139,10 +157,77 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
       await markAsRead(notification.id);
     }
 
-    // Navigate to file preview if it's a file-related notification
-    if (notification.file_id) {
+    // Navigate to file preview if it's a file-related notification (only for share notifications)
+    if (notification.file_id && notification.type === 'file_share') {
       onClose();
       navigate(`/preview/${notification.file_id}`);
+    }
+  };
+
+  const handleRecoverFile = async (e: React.MouseEvent, notification: Notification) => {
+    e.stopPropagation();
+    if (!notification.file_id) return;
+
+    try {
+      const { error } = await supabase
+        .from('files')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', notification.file_id);
+
+      if (error) throw error;
+
+      // Delete the notification
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notification.id);
+
+      toast.success('Bestand hersteld');
+      loadNotifications();
+    } catch (error: any) {
+      toast.error('Kon bestand niet herstellen');
+      console.error(error);
+    }
+  };
+
+  const handlePermanentDelete = async (e: React.MouseEvent, notification: Notification) => {
+    e.stopPropagation();
+    if (!notification.file_id) return;
+
+    try {
+      // Get file info first
+      const { data: file } = await supabase
+        .from('files')
+        .select('storage_url')
+        .eq('id', notification.file_id)
+        .single();
+
+      if (file) {
+        // Delete from storage
+        await supabase.storage
+          .from('user-files')
+          .remove([file.storage_url]);
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', notification.file_id);
+
+      if (error) throw error;
+
+      // Delete the notification
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notification.id);
+
+      toast.success('Bestand permanent verwijderd');
+      loadNotifications();
+    } catch (error: any) {
+      toast.error('Kon bestand niet verwijderen');
+      console.error(error);
     }
   };
 
@@ -197,53 +282,86 @@ export const NotificationsPanel = ({ open, onClose, userId }: NotificationsPanel
             </div>
           )}
 
-          {!loading && notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="space-y-3 cursor-pointer"
-              onClick={() => handleNotificationClick(notification)}
-            >
-              {/* Sender and action */}
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-base flex-1">
-                  <span className="font-medium">
-                    {notification.profiles?.display_name || notification.profiles?.username}
-                  </span>
-                  {' '}heeft een bestand met u gedeeld.
-                </p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-3 text-xs rounded-full bg-secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    markAsRead(notification.id);
-                  }}
-                >
-                  Wis
-                </Button>
-              </div>
-
-              {notification.files && (
-                <div className="bg-secondary/30 rounded-xl p-4 flex items-center gap-3">
-                  {getFileIcon(notification.files.filename)}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {notification.files.filename}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      0.20 MB
-                    </p>
-                  </div>
+          {!loading && notifications.map((notification) => {
+            const isDeleteNotification = notification.type === 'file_deleted' || notification.type === 'folder_deleted';
+            
+            return (
+              <div
+                key={notification.id}
+                className="space-y-3 cursor-pointer"
+                onClick={() => handleNotificationClick(notification)}
+              >
+                {/* Sender and action */}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-base flex-1">
+                    {isDeleteNotification ? (
+                      notification.type === 'folder_deleted' 
+                        ? 'U heeft een map naar de prullenbak verplaatst.'
+                        : 'U heeft een bestand naar de prullenbak verplaatst.'
+                    ) : (
+                      <>
+                        <span className="font-medium">
+                          {notification.profiles?.display_name || notification.profiles?.username}
+                        </span>
+                        {' '}heeft een bestand met u gedeeld.
+                      </>
+                    )}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-3 text-xs rounded-full bg-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAsRead(notification.id);
+                    }}
+                  >
+                    Wis
+                  </Button>
                 </div>
-              )}
 
-              {/* Timestamp */}
-              <p className="text-sm text-muted-foreground">
-                {formatRelativeDate(notification.created_at)}
-              </p>
-            </div>
-          ))}
+                {notification.files && (
+                  <div className="bg-secondary/30 rounded-xl p-4 flex items-center gap-3">
+                    {getFileIcon(notification.files.filename)}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {notification.files.filename}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons for delete notifications */}
+                {isDeleteNotification && notification.file_id && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full flex items-center gap-2"
+                      onClick={(e) => handleRecoverFile(e, notification)}
+                    >
+                      <Undo2 className="w-4 h-4" />
+                      Zet terug
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full flex items-center gap-2 text-destructive hover:text-destructive"
+                      onClick={(e) => handlePermanentDelete(e, notification)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Verwijder
+                    </Button>
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                <p className="text-sm text-muted-foreground">
+                  {formatRelativeDate(notification.created_at)}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </SheetContent>
     </Sheet>
