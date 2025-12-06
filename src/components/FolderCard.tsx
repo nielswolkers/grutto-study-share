@@ -237,8 +237,12 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
       onClick={() => navigate(`/folder/${folder.id}`)}
     >
       {/* Three dots menu - appears on hover */}
-      <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenu>
+      <div 
+        className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity" 
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <DropdownMenu modal={true}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
@@ -246,37 +250,63 @@ export const FolderCard = ({ folder, fileCount, onUpdate }: FolderCardProps) => 
               className="h-8 w-8 rounded-full bg-secondary/80 hover:bg-secondary"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
               }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              setShowRenameDialog(true);
-            }} className="rounded-xl py-3">
+          <DropdownMenuContent 
+            align="end" 
+            className="w-56 rounded-2xl p-2" 
+            onClick={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setShowRenameDialog(true);
+              }} 
+              className="rounded-xl py-3"
+              onSelect={(e) => e.preventDefault()}
+            >
               <Edit2 className="w-4 h-4 mr-2" />
               Wijzigen
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              setShowShareDialog(true);
-            }} className="rounded-xl py-3">
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setShowShareDialog(true);
+              }} 
+              className="rounded-xl py-3"
+              onSelect={(e) => e.preventDefault()}
+            >
               <img src={shareIcon} alt="Deel map" className="w-4 h-4 mr-2" />
               Deel map
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCopyFolder} className="rounded-xl py-3">
+            <DropdownMenuItem 
+              onClick={handleCopyFolder} 
+              className="rounded-xl py-3"
+              onSelect={(e) => e.preventDefault()}
+            >
               <Copy className="w-4 h-4 mr-2" />
               Kopiëren
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDownloadZip} className="rounded-xl py-3">
+            <DropdownMenuItem 
+              onClick={handleDownloadZip} 
+              className="rounded-xl py-3"
+              onSelect={(e) => e.preventDefault()}
+            >
               <Download className="w-4 h-4 mr-2" />
               Download als ZIP
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={handleDelete}
               className="text-destructive focus:text-destructive rounded-xl py-3"
+              onSelect={(e) => e.preventDefault()}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Verwijderen
