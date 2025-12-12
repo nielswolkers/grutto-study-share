@@ -11,14 +11,24 @@ export const FilePreview = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newFileName, setNewFileName] = useState("");
 
+  const isOfficeFile = (fileType: string) => {
+    return fileType?.includes('word') || 
+           fileType?.includes('document') ||
+           fileType?.includes('excel') || 
+           fileType?.includes('spreadsheet') ||
+           fileType?.includes('powerpoint') || 
+           fileType?.includes('presentation');
+  };
+
   useEffect(() => {
     loadFile();
     return () => {
-      if (previewUrl) {
+      if (previewUrl && !previewUrl.startsWith('http')) {
         URL.revokeObjectURL(previewUrl);
       }
     };
@@ -39,15 +49,25 @@ export const FilePreview = () => {
       setFile(fileData);
       setNewFileName(fileData.filename);
 
-      // Download file for preview
-      const { data, error } = await supabase.storage
-        .from('user-files')
-        .download(fileData.storage_url);
+      // For Office files, get a signed URL for the online viewer
+      if (isOfficeFile(fileData.file_type)) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('user-files')
+          .createSignedUrl(fileData.storage_url, 3600); // 1 hour expiry
 
-      if (error) throw error;
+        if (signedError) throw signedError;
+        setSignedUrl(signedData.signedUrl);
+        setPreviewUrl(signedData.signedUrl);
+      } else {
+        // Download file for preview (images, PDFs)
+        const { data, error } = await supabase.storage
+          .from('user-files')
+          .download(fileData.storage_url);
 
-      const url = URL.createObjectURL(data);
-      setPreviewUrl(url);
+        if (error) throw error;
+        const url = URL.createObjectURL(data);
+        setPreviewUrl(url);
+      }
     } catch (error: any) {
       toast.error("Kon bestand niet laden");
       console.error(error);
@@ -93,11 +113,12 @@ export const FilePreview = () => {
     navigate(-1);
   };
 
-  const isImage = file?.file_type.includes('image');
-  const isPdf = file?.file_type.includes('pdf');
-  const isWord = file?.file_type.includes('word');
-  const isExcel = file?.file_type.includes('excel') || file?.file_type.includes('spreadsheet');
-  const isPowerPoint = file?.file_type.includes('powerpoint') || file?.file_type.includes('presentation');
+  const isImage = file?.file_type?.includes('image');
+  const isPdf = file?.file_type?.includes('pdf');
+  const isWord = file?.file_type?.includes('word') || file?.file_type?.includes('document');
+  const isExcel = file?.file_type?.includes('excel') || file?.file_type?.includes('spreadsheet');
+  const isPowerPoint = file?.file_type?.includes('powerpoint') || file?.file_type?.includes('presentation');
+  const isOfficeDocument = isWord || isExcel || isPowerPoint;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">{/* White background for preview */}
@@ -184,19 +205,12 @@ export const FilePreview = () => {
               />
             )}
 
-            {(isWord || isExcel || isPowerPoint) && (
-              <div className="border rounded-2xl p-12 text-center bg-card">
-                <p className="text-muted-foreground mb-4">
-                  Voorbeeld niet beschikbaar voor dit bestandstype
-                </p>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Dubbelklik op het bestand in de bestandslijst om het te openen in {isWord ? 'Word' : isExcel ? 'Excel' : 'PowerPoint'}
-                </p>
-                <Button onClick={handleDownload} className="rounded-full">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download om te bekijken
-                </Button>
-              </div>
+            {isOfficeDocument && signedUrl && (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}`}
+                className="w-full h-[calc(100vh-200px)] rounded-2xl border shadow-lg bg-white"
+                title={file?.filename}
+              />
             )}
           </div>
         )}
